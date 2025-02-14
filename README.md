@@ -1,4 +1,4 @@
-# GQC
+# GQC -- Genome Quality Checker
 
 The GQC python package analyses a user-supplied alignment of a test assembly to a benchmark assembly (preferably from the same sample), and prints general statistics, BED-formatted regions regarding the alignments and discrepancies within them, along with PDF-formatted plots.
 
