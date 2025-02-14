@@ -1,0 +1,3 @@
+resourcedir: resources
+mononucruns: resources/v1.0.1.mnr10.bed
+hetsitevariants: resources/v1.0.1.hetsites.bed
