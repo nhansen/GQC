@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools >= 61.0", "pytest"]
+build-backend = "setuptools.build_meta"
+
+[tools.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = [""]
+
+[project]
+name = "GQC"
+version = "0.1"
+authors = [
+  { name="Nancy F. Hansen", email="nhansen@mail.nih.gov" },
+]
+description = "A package for comparing a test genome to the diploid Q100 benchmark"
+readme = "README.md"
+requires-python = ">=3.7"
+dependencies = [
+  'pysam >= 0.20',
+  'pybedtools >= 0.9',
+  'pytest >= 7.4.3',
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+license = {file = "LICENSE"}
+
+[project.scripts]
+GQC = "GQC.bench:main"
+assemblybench = "GQC.bench:main"
+gethets = "GQC.gethets:main"
+readbench = "GQC.readbench:main"
+
+[project.urls]
+"Homepage" = "https://github.com/nhansen/GQC"
+"Bug Tracker" = "https://github.com/nhansen/GQC/issues"
+

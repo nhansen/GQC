@@ -1,0 +1,2 @@
+include GQC/*.R
+include GQC/GQC.config.txt
