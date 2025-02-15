@@ -206,7 +206,7 @@ def main() -> None:
         patblocksubaligns = alignparse.find_phaseblock_subaligns(patphaseblockints, patalignedintervals, pataligns)
         alignparse.write_aligns_to_samfile(outputfiles["trimmedphasedpatalignmentsam"], patblocksubaligns, headerbam=patbenchbamfile)
     
-        sammergereturnval = os.system("cat " + outputfiles["trimmedphasedmatalignmentsam"] + " " + outputfiles["trimmedphasedpatalignmentsam"] + " | sort -k3,3 -k4,4n > " + outputfiles["trimmedphasedalignmentsam"])
+        sammergereturnval = os.system("cat " + outputfiles["trimmedphasedmatalignmentsam"] + " " + outputfiles["trimmedphasedpatalignmentsam"] + " | grep -v '^@' | sort -k3,3 -k4,4n > " + outputfiles["trimmedphasedalignmentsam"])
         logger.debug("Combining maternal and paternal trimmed alignments had return value " + str(sammergereturnval))
         trimmedbamconvertval = os.system("samtools view -t " + args.reffasta + ".fai " + outputfiles["trimmedphasedalignmentsam"] + " -o " + outputfiles["trimmedphasedalignmentbam"])
         logger.debug("Converting trimmed alignments to BAM format had return value " + str(trimmedbamconvertval))
