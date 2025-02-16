@@ -155,28 +155,28 @@ def main() -> None:
         logger.info("Assessing accuracy of short tandem repeats")
         print("Assessing accuracy of short tandem repeats")
     
-        if benchparams["tetranucruns"]:
+        if "tetranucruns" in benchparams:
             logger.debug(benchparams["tetranucruns"])
             tetranucstats = errors.assess_str_read_coverage_require_flank('tetranuc', alignobj, refobj, benchparams["tetranucruns"], outputfiles, benchintervals, hetsites, args)
             stats.write_read_str_stats('tetranuc', tetranucstats, outputfiles, args)
         else:
             logger.info("No tetranucleotide bed file specified in configuration file(tetranucruns)")
         
-        if benchparams["trinucruns"]:
+        if "trinucruns" in benchparams:
             logger.debug(benchparams["trinucruns"])
             trinucstats = errors.assess_str_read_coverage_require_flank('trinuc', alignobj, refobj, benchparams["trinucruns"], outputfiles, benchintervals, hetsites, args)
             stats.write_read_str_stats('trinuc', trinucstats, outputfiles, args)
         else:
             logger.info("No trinucleotide bed file specified in configuration file(trinucruns)")
     
-        if benchparams["dinucruns"]:
+        if "dinucruns" in benchparams:
             logger.debug(benchparams["dinucruns"])
             dinucstats = errors.assess_str_read_coverage_require_flank('dinuc', alignobj, refobj, benchparams["dinucruns"], outputfiles, benchintervals, hetsites, args)
             stats.write_read_str_stats('dinuc', dinucstats, outputfiles, args)
         else:
             logger.info("No dinucleotide bed file specified in configuration file(dinucruns)")
     
-        if benchparams["mononucruns"]:
+        if "mononucruns" in benchparams:
             logger.debug(benchparams["mononucruns"])
             mononucstats = errors.assess_str_read_coverage_require_flank('mononuc', alignobj, refobj, benchparams["mononucruns"], outputfiles, benchintervals, hetsites, args)
             stats.write_read_str_stats('mononuc', mononucstats, outputfiles, args)
