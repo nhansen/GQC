@@ -2,7 +2,7 @@
 
 The GQC python package analyses a user-supplied alignment of a test assembly to a benchmark assembly (preferably from the same sample), and prints general statistics, BED-formatted regions regarding the alignments and discrepancies within them, along with PDF-formatted plots. In addition, it reports statistics regarding discrepancies between aligned sequencing read sets and a benchmark that can help to elucidate sequencing platform strengths and weaknesses. Example outputs of various assembly and read benchmarking using GQC with the [HG002v1.1](https://github.com/marbl/HG002) assembly are available on [AWS](https://s3-us-west-2.amazonaws.com/human-pangenomics/index.html?prefix=T2T/HG002/assemblies/benchmarking/analyses/).
 
-The program was written by Nancy Fisher Hansen, a staff scientist in the Genome Informatics Section at the National Human Genome Research Institute (NHGRI). Nancy can be reached at nhansen@mail.nih.gov.
+The program was written by Nancy Fisher Hansen, a staff scientist in the [Genome Informatics Section](https://genomeinformatics.github.io/), Center for Genomics and Data Science Research, National Human Genome Research Institute (NHGRI). Nancy can be reached at nhansen@mail.nih.gov.
 
 ## Table of contents
 - [Install](#install)
@@ -13,15 +13,15 @@ The program was written by Nancy Fisher Hansen, a staff scientist in the Genome 
 
 ## Dependencies
 
-Running GQC requires an installation of commit 38b07c2 or later of Gene Myers' [FASTK](https://github.com/thegenemyers/FASTK.git) package with its "KmerMap" and "FastK" commands in your path. GQC also uses R's Rscript command with [Bioconductor](https://www.bioconductor.org/) to create plots, and [bedtools](https://bedtools.readthedocs.io/en/latest/) to compare and merge intervals. If the "Rscript" command is not in a user's path, the program will complain, and perform all functions except plotting. If the "bedtools" command isn't in the user's path, the program will exit with an error. To use GQC's plotting functions, you will need to install the "stringr" package and the "karyoploteR" package, which is part of Bioconductor.
+Running GQC's assembly benchmarking requires an installation of commit 38b07c2 or later of Gene Myers' [FASTK](https://github.com/thegenemyers/FASTK.git) package with its "KmerMap" and "FastK" commands in your path. For both assembly and read analyses, GQC uses R's Rscript command with [Bioconductor](https://www.bioconductor.org/) to create plots, and [bedtools](https://bedtools.readthedocs.io/en/latest/) to compare and merge intervals. If the "Rscript" command is not in a user's path, the program will complain, and perform all functions except plotting. If the "bedtools" command isn't in the user's path, the program will exit with an error. To use GQC's plotting functions, you will need to install the "stringr" package and the "karyoploteR" package, which are part of Bioconductor.
 
-In addition, the program requires various files with data about the benchmark assembly you are comparing to. For the Q100 benchmark assembly hg002v1.1, a tarball of these files is available on [AWS](https://s3-us-west-2.amazonaws.com/human-pangenomics/T2T/HG002/assemblies/polishing/HG002/v1.1/benchmark/resources/hg002v1.1.resources.tar.gz). Once downloaded, the tarball should be unpacked and the locations of its files should be included in the config file passed to the program (see the section "Config file" for more details).
+In addition, the program requires a set of files with data about the benchmark assembly you are comparing to. For the Q100 benchmark assembly hg002v1.1, a tarball of these files is available on [AWS](https://s3-us-west-2.amazonaws.com/human-pangenomics/T2T/HG002/assemblies/polishing/HG002/v1.1/benchmark/resources/hg002v1.1.resources.tar.gz). Once downloaded, this tarball should be unpacked and the locations of its files should be included in the config file that is either in your current working directory or that you pass to the GQC program (see the section "Config file" for more details).
 
-All other dependencies will be installed by the pip installer with the commands in the next section called "Local Installation". Feel free to post installation issues to the issues section of this github repository.
+All other dependencies will be installed by the pip installer with the commands in the next section called "Local Installation". Feel free to post installation issues to the issues section of this github repository and we will attempt to address them promptly.
 
 ## Local Installation
 
-Until GQC is available on PyPi and bioconda, the easiest way to use it is to install it locally. First clone this github repository:
+Until GQC becomes available on PyPi and bioconda, the easiest way to use it is to install it locally. First clone this github repository:
 ```
 git clone https://github.com/nhansen/GQC
 cd GQC
@@ -42,17 +42,17 @@ pytest
 
 ## Config file
 
-In order to evaluate heterozygous sites, mononucleotide run lengths, and other features of the benchmark, the GQC program needs specially formatted annotation files for the benchmark genomes. For hg002v1.1, these files are contained in a tarball available on [AWS](https://s3-us-west-2.amazonaws.com/human-pangenomics/T2T/HG002/assemblies/polishing/HG002/v1.1/benchmark/resources/hg002v1.1.resources.tar.gz). The program reads the locations of these files from a config file, which GQC assumes, by default, is a file called "benchconfig.txt" in your working directory. The location of this file can also be specified with the -c or --config option. If the config file is not accessible in one of these two ways, the program will complain and exit.
+In order to evaluate heterozygous sites, short tandem repeat run lengths, and other features of the genome benchmark, the GQC program needs specially formatted annotation files for the benchmark genomes. For hg002v1.1, these files are contained in a tarball available on [AWS](https://s3-us-west-2.amazonaws.com/human-pangenomics/T2T/HG002/assemblies/polishing/HG002/v1.1/benchmark/resources/hg002v1.1.resources.tar.gz). The program reads the locations of these files from a config file, which GQC assumes, by default, is a file called "benchconfig.txt" in your working directory, but the location of this file can also be specified with the -c or --config option. If the config file is not accessible in one of these two ways, the program will complain and exit.
 
 An example config file is located in the resource tarball and contains the necessary parameters and file names. Edit that config file to specify the full path for each of the resource files (the "resourcedir" should be the path to the entire directory), and you can use that file as your config file when running the GQC or readbench commands.
 
-## Evaluating haplotypes of diploid assemblies
+## Evaluating haploid and diploid assemblies
 
-At this point, the GQC program is written to evaluate a BAM-formatted file of alignments of a single haplotype of a diploid assembly to a diploid benchmark genome (e.g., hg002v1.1). We recommend aligning each haplotype of the diploid assembly separately to the diploid benchmark using minimap2 with the "-x asm5" preset. To evaluate each haplotype the program usage is
+To evaluate assembly scaffolds or contigs, the "bench" command first maps the locations of haplotype-specific 40-mers from the benchmark with the assembly's FASTA file. It then uses your installed version of minimap2 to create and trim alignments of each phased assembly sequence block to the appropriate benchmark haplotype.
 
-	GQC assemblybench -b <assemblyhaplotype_vs_benchmark.bam> -r <benchmark.fasta> -q <assemblyhaplotype.fasta> -p <prefix_for_output> -A <assemblyhaplotype_name> -B <benchmark_name>
+	GQC bench -r <benchmark.fasta> -q <assembly.fasta> -p <prefix_for_output> -A <assembly_name> -B <benchmark_name>
 
-For typical assemblies, the assemblybench will use about 16Gb of memory and around 15 minutes of CPU time. The command "GQC --help" will display information on other options available (e.g., to restrict regions of the genome examined, set minimum contig or alignment lengths for processing, etc.).
+For typical assemblies, the bench command will use about 64Gb of memory and around 4 hours run time on two processors. The command "GQC --help" will display information on other options available (e.g., to restrict regions of the genome examined, set minimum contig or alignment lengths for processing, etc.).
 
 ## Evaluating read sets
 
@@ -70,15 +70,15 @@ All GQC programs create an output directory named with the prefix passed to the 
 
 ### General statistics file
 
-A file called "<assemblyhaplotype_name>.generalstats.txt" will contain general statistics about the assembly haplotype. The haplotype fasta file is first split into contigs anywhere the sequence contains at least 10 consecutive Ns (this value can be modified with the option --minns), and the number of scaffolds and contigs, the total bases within them, and statistics like N50/L50, NG50/LG50, and auNG are reported.
+A file called "<assembly_name>.generalstats.txt" will contain general statistics about the assembly. The fasta file is first split into contigs anywhere the sequence contains at least 10 consecutive Ns (this value can be modified with the option --minns), and the number of scaffolds and contigs, the total bases within them, and statistics like N50/L50, NG50/LG50, and auNG are reported.
 
-Then, the program evaluates the user-supplied alignments of the haplotype to the benchmark genome, and reports similar statistics (NGA50/LGA50/auNGA) for these alignments, as well as the total number of haplotype bases aligned to each of the two benchmark haplotypes.
+Then, the program evaluates the alignments of the phased scaffold segments to their corresponding benchmark genome haplotype, and reports similar statistics (NGA50/LGA50/auNGA) for these alignments, as well as the total number of bases aligned to each of the two benchmark haplotypes.
 
 For each of the benchmark heterozygote sites provided in the benchmark's heterozygote bed file, the program will determine which of the two parental benchmark alleles is present in any of the haplotype alignments that cover the site. Then, for individual contig alignments, it will tally the number of times heterozygous sites within the alignment switch from maternal to paternal or vice-versa. From these switches and the lengths of the alignments, a switch rate is calculated and reported.
 
 In evaluating accuracy, GQC tallies the number of discrepancies within primary alignments, and determines whether each represents the alternate allele of a heterozygous site. It then reports numbers of substitution and indel discrepancies and the number of these that match or don't match the alternate haplotype. From the total number of discrepancies and the total number of aligned bases, it reports a phred-scaled quality value (QV).
 
-For each homopolymer run in the benchmark's mononucleotide run file, the program examines the assembly alignments that intersect the homopolymer region. If the alignment has no discrepancies, it is considered "correct". If not and the assembly has a same-base run of a different length, its length is tallied, and if it has a different sequence, it is tallied as "complex". In the general statistics file, these categories are reported as "correct", "fewer or more of the same base", or "erroneous alleles other than extensions or contractions".
+For each mono-, di-, tri-, and tetra- homopolymer run in the benchmark's short tandem repeat BED files, the bench program examines the assembly alignments that intersect the STR region. If the alignment has no discrepancies, it is considered "correct". If not and the assembly has a same-base run of a different length, its length is tallied, and if it has a different sequence, it is tallied as "complex". In the general statistics file, these categories are reported as "correct", "fewer or more of the same base", or "erroneous alleles other than extensions or contractions".
 
 ### BED files
 
