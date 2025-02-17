@@ -188,10 +188,12 @@ def main() -> None:
 
     # align test assembly separately to maternal and paternal haplotypes:
     logger.info("Step 4 (of 11): Aligning assembly separately to maternal and paternal haplotypes of the benchmark and gathering trimmed alignments of phased assembly regions to their corresponding haplotypes")
-    if not os.path.exists(outputfiles["trimmedphasedalignmentbam"]):
+    if not os.path.exists(outputfiles["trimmedphasedalignprefix"] + ".merge.sort.bam"):
         [matbenchbamfile, patbenchbamfile] = align.align_assembly_to_benchmark_haplotypes(args.queryfasta, outputfiles, benchparams, args)
     
         # read in alignments from BAM format, filtering out secondaries and finding the optimal alignment on the correct haplotype for each phase block in the assembly
+
+        benchdiploidheaderfile = benchparams["benchdiploidheader"]
     
         [mataligns, matalignedintervals] = alignparse.index_aligns_by_boundaries(matbenchbamfile, args)
         [pataligns, patalignedintervals] = alignparse.index_aligns_by_boundaries(patbenchbamfile, args)
@@ -201,29 +203,24 @@ def main() -> None:
     
         print("Finding subaligns in maternal alignments for maternal phase blocked regions of the assembly")
         matblocksubaligns = alignparse.find_phaseblock_subaligns(matphaseblockints, matalignedintervals, mataligns)
-        alignparse.write_aligns_to_samfile(outputfiles["trimmedphasedmatalignmentsam"], matblocksubaligns, headerbam=matbenchbamfile)
+        mattrimmedbamfile = outputfiles["trimmedphasedalignprefix"] + ".mat.bam"
+        alignparse.write_aligns_to_bamfile(mattrimmedbamfile, matblocksubaligns, headerbam=matbenchbamfile, sort=False)
         print("Finding subaligns in paternal alignments for paternal phase blocked regions of the assembly")
         patblocksubaligns = alignparse.find_phaseblock_subaligns(patphaseblockints, patalignedintervals, pataligns)
-        alignparse.write_aligns_to_samfile(outputfiles["trimmedphasedpatalignmentsam"], patblocksubaligns, headerbam=patbenchbamfile)
-    
-        sammergereturnval = os.system("cat " + outputfiles["trimmedphasedmatalignmentsam"] + " " + outputfiles["trimmedphasedpatalignmentsam"] + " | grep -v '^@' | sort -k3,3 -k4,4n > " + outputfiles["trimmedphasedalignmentsam"])
-        logger.debug("Combining maternal and paternal trimmed alignments had return value " + str(sammergereturnval))
-        trimmedbamconvertval = os.system("samtools view -t " + args.reffasta + ".fai " + outputfiles["trimmedphasedalignmentsam"] + " -o " + outputfiles["trimmedphasedalignmentbam"])
-        logger.debug("Converting trimmed alignments to BAM format had return value " + str(trimmedbamconvertval))
-        trimmedbamindexval = os.system("samtools index " + outputfiles["trimmedphasedalignmentbam"])
-        logger.debug("Indexing trimmed bam file had return value " + str(trimmedbamindexval))
-        if trimmedbamconvertval==0 and trimmedbamindexval==0:
-            os.remove(outputfiles["trimmedphasedmatalignmentsam"])
-            os.remove(outputfiles["trimmedphasedpatalignmentsam"])
-            os.remove(outputfiles["trimmedphasedalignmentsam"])
+        pattrimmedbamfile = outputfiles["trimmedphasedalignprefix"] + ".pat.bam"
+        alignparse.write_aligns_to_bamfile(pattrimmedbamfile, patblocksubaligns, headerbam=patbenchbamfile, sort=False)
+
+        # now merge the maternal and paternal trimmed files to a single file with a diploid header, sort, and index:
+        alignparse.merge_trimmed_bamfiles(mattrimmedbamfile, pattrimmedbamfile, benchdiploidheaderfile, outputfiles)
     else: 
-        logger.info("Skipping step 4 (of 11): Trimmed phased alignments already exist in " + outputfiles["trimmedphasedalignmentbam"])
+        logger.info("Skipping step 4 (of 11): Trimmed phased alignments already exist in " + outputfiles["trimmedphasedalignprefix"] + ".merge.sort.bam")
+
+    trimmedphasedbam = outputfiles["trimmedphasedalignprefix"] + ".merge.sort.bam"
 
     logger.info("Step 5 (of 11): Filtering alignment to include primary best increasing subset")
-    bamfile = outputfiles["trimmedphasedalignmentbam"]
     if not args.nosplit:
-        alignobj = pysam.AlignmentFile(bamfile, "rb")
-        splitbam_name = bamfile.replace(".bam", ".split.bam")
+        alignobj = pysam.AlignmentFile(trimmedphasedbam, "rb")
+        splitbam_name = trimmedphasedbam.replace(".bam", ".split.bam")
         splitsortbam_name = splitbam_name.replace(".bam", ".sort.bam")
         alignparse.split_aligns_and_sort(splitbam_name, alignobj, minindelsize=args.splitdistance)
         pysam.sort("-o", splitsortbam_name, splitbam_name)

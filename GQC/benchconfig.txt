@@ -11,4 +11,5 @@ matmarkerdb: /data/Phillippy/projects/HG002_diploid/benchmarking/resources/v1.1/
 patmarkerdb: /data/Phillippy/projects/HG002_diploid/benchmarking/resources/v1.1/v1.1.patnotmat.k40.hap
 matbenchmark: /data/Phillippy/projects/HG002_diploid/assemblies/v1.1.mat.fasta.gz
 patbenchmark: /data/Phillippy/projects/HG002_diploid/assemblies/v1.1.pat.fasta.gz
-winnowmaprepkmers: /data/Phillippy/projects/HG002_diploid/benchmarking/resources/v1.1.repetitive_k19.txt
+winnowmaprepkmers: /data/Phillippy/projects/HG002_diploid/benchmarking/resources/v1.1/v1.1.repetitive_k19.txt
+benchdiploidheader: /data/Phillippy/projects/HG002_diploid/benchmarking/resources/v1.1/v1.1.header.sam

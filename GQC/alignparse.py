@@ -1,4 +1,5 @@
 import re
+import os
 import pysam
 import pybedtools
 import logging
@@ -1175,7 +1176,7 @@ def find_phaseblock_subaligns(phaseblockints, alignedintervals, aligndict):
 
     return subalignlist
 
-def write_aligns_to_bamfile(bamfilename:str, aligns:list, headerbam:str="test_bam_for_header.bam"):
+def write_aligns_to_bamfile(bamfilename:str, aligns:list, headerbam:str="test_bam_for_header.bam", sort=True, index=True):
 
     bamobj = pysam.AlignmentFile(headerbam, "r")
 
@@ -1183,9 +1184,14 @@ def write_aligns_to_bamfile(bamfilename:str, aligns:list, headerbam:str="test_ba
         for align in aligns:
             sbfh.write(align)
 
-    sortedbamfilename = bamfilename.replace(".bam", ".sort.bam")
-    pysam.sort("-o", sortedbamfilename, bamfilename)
-    pysam.index(sortedbamfilename)
+    if sort:
+        sortedbamfilename = bamfilename.replace(".bam", ".sort.bam")
+        pysam.sort("-o", sortedbamfilename, bamfilename)
+        if index:
+            pysam.index(sortedbamfilename)
+        return sortedbamfilename
+    else:
+        return bamfilename
 
 def write_aligns_to_samfile(samfilename:str, aligns:list, headerbam:str="test_bam_for_header.bam"):
 
@@ -1196,3 +1202,30 @@ def write_aligns_to_samfile(samfilename:str, aligns:list, headerbam:str="test_ba
         for align in aligns:
             sbfh.write(align)
 
+
+def merge_trimmed_bamfiles(mattrimmedbamfile:str, pattrimmedbamfile:str, benchdiploidheaderfile:str, outputfiles:dict, sort=True):
+
+    mergedtrimmedsamfile = outputfiles["trimmedphasedalignprefix"] + ".merge.dipheader.sam"
+    headerreturnval = os.system("cat " + benchdiploidheaderfile + " > " + mergedtrimmedsamfile)
+    logger.debug("Copying " + benchdiploidheaderfile + " to " + mergedtrimmedsamfile + "had return value " + str(headerreturnval))
+
+    mattrimmedsamreturnval = os.system("samtools view " + mattrimmedbamfile + " >> " + mergedtrimmedsamfile)
+    logger.debug("Writing maternal trimmed sam alignments to " + mergedtrimmedsamfile + " had return value " + str(mattrimmedsamreturnval))
+    pattrimmedsamreturnval = os.system("samtools view " + pattrimmedbamfile + " >> " + mergedtrimmedsamfile)
+    logger.debug("Writing paternal trimmed sam alignments to " + mergedtrimmedsamfile + " had return value " + str(pattrimmedsamreturnval))
+    mergedtrimmedbamfile = outputfiles["trimmedphasedalignprefix"] + ".merge.bam"
+    samtobamreturnval = os.system("samtools view -bS " + mergedtrimmedsamfile + " -o " + mergedtrimmedbamfile)
+    logger.debug("Converting merged trimmed sam alignments to bam had return value " + str(samtobamreturnval))
+
+    if sort:
+        trimmedphasedsortbam = outputfiles["trimmedphasedalignprefix"] + ".merge.sort.bam"
+        trimmedbamsortreturnval = os.system("samtools sort " + mergedtrimmedbamfile + " > " + trimmedphasedsortbam)
+        logger.debug("Sorting merged trimmed bam alignments had return value " + str(trimmedbamsortreturnval))
+        trimmedbamindexval = os.system("samtools index " + trimmedphasedsortbam)
+        logger.debug("Indexing trimmed bam file had return value " + str(trimmedbamindexval))
+        if trimmedbamsortreturnval==0 and trimmedbamindexval==0:
+            os.remove(mergedtrimmedsamfile)
+            return ""
+        return trimmedphasedsortbam
+
+    return mergedtrimmedbamfile
