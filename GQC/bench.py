@@ -63,7 +63,7 @@ def init_argparse() -> argparse.ArgumentParser:
     parser.add_argument('-p', '--prefix', type=str, required=True, help='prefix for output directory name, filenames have assembly name in prefix (see -A)')
     parser.add_argument('-t', type=int, required=False, default=2, help='number of processors to use')
     parser.add_argument('-a', '--aligner', type=str, required=False, default='winnowmap2', help='aligner to use when comparing assembly to benchmark, can be minimap2 or winnowmap2 (default winnowmap2)')
-    parser.add_argument('-m', '--minalignlength', type=int, required=False, default=5000, help='minimum length of alignment required to be included in alignment statistics and error counts')
+    parser.add_argument('-m', '--minalignlength', type=int, required=False, default=500, help='minimum length of alignment required to be included in alignment statistics and error counts')
     parser.add_argument('--mincontiglength', type=int, required=False, default=500, help='minimum length for contig to be included in contig statistics')
     parser.add_argument('--minns', type=int, required=False, default=10, help='minimum number of consecutive Ns required to break scaffolds into contigs')
     parser.add_argument('--maxclusterdistance', type=int, required=False, default=10000, help='maximum distance within a cluster of alignments')
@@ -219,12 +219,13 @@ def main() -> None:
 
     logger.info("Step 5 (of 11): Filtering alignment to include primary best increasing subset")
     if not args.nosplit:
-        alignobj = pysam.AlignmentFile(trimmedphasedbam, "rb")
         splitbam_name = trimmedphasedbam.replace(".bam", ".split.bam")
         splitsortbam_name = splitbam_name.replace(".bam", ".sort.bam")
-        alignparse.split_aligns_and_sort(splitbam_name, alignobj, minindelsize=args.splitdistance)
-        pysam.sort("-o", splitsortbam_name, splitbam_name)
-        pysam.index(splitsortbam_name)
+        if not os.path.exists(splitsortbam_name):
+            alignobj = pysam.AlignmentFile(trimmedphasedbam, "rb")
+            alignparse.split_aligns_and_sort(splitbam_name, alignobj, minindelsize=args.splitdistance)
+            pysam.sort("-o", splitsortbam_name, splitbam_name)
+            pysam.index(splitsortbam_name)
         alignobj = pysam.AlignmentFile(splitsortbam_name, "rb")
         aligndata = alignparse.read_bam_aligns(alignobj, args.minalignlength)
         rlis_aligndata = mummermethods.filter_aligns(aligndata, "target")

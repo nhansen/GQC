@@ -55,6 +55,16 @@ def plot_svcluster_align_plots(assemblyname:str, benchname:str, outputdir:str, r
             returnvalues.append(os.system(plotcommand))
     return returnvalues
 
+def plot_sv_indel_profile_plot(assemblyname:str, benchname:str, outputdir:str, resourcedir:str, refobj):
+    rfile_res = importlib.resources.files("GQC").joinpath('IndelProfile.R')
+
+    with importlib.resources.as_file(rfile_res) as rfile:
+        plotcommand = "Rscript " + str(rfile) + " " + assemblyname + " " + benchname + " " + outputdir + " " 
+        logger.info(plotcommand)
+        returnvalue = os.system(plotcommand)
+
+    return returnvalue
+
 def plot_assembly_error_stats(assemblyname:str, genomename:str, outputdir:str):
     rfile_res = importlib.resources.files("GQC").joinpath('IndelLengthPlot.R')
     with importlib.resources.as_file(rfile_res) as rfile:
