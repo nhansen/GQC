@@ -3,12 +3,12 @@ import subprocess
 import sys
 import os
 import pysam
-from qualiffy import bench
-from qualiffy import output
-from qualiffy import seqparse
-from qualiffy import alignparse
-from qualiffy import mummermethods
-from qualiffy import bedtoolslib
+from GQC import bench
+from GQC import output
+from GQC import seqparse
+from GQC import alignparse
+from GQC import mummermethods
+from GQC import bedtoolslib
 
 def test_configs():
     args = bench.parse_arguments(['-c', 'tests/testconfig.txt', '-b', 'blah', '-r', 'blah', '-q', 'blah', '-p', 'blah'])
