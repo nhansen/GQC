@@ -10,7 +10,7 @@ import importlib.resources
 from pathlib import Path
 from GQC import seqparse
 from GQC import alignparse
-from GQC import assemblygraph
+#from GQC import assemblygraph
 from GQC import bedtoolslib
 from GQC import heatmap
 
