@@ -938,3 +938,10 @@ def write_read_error_summary(stats:dict, outputfiles:dict):
 def write_phase_block_stats(phaseblockints:pybedtools.bedtool.BedTool, outputfiles:dict, benchmark_stats:dict, args):
 
     return 0
+
+def write_assembly_haplotype_stats(fastaobj, contigregions, gapregions, args)->dict:
+
+    hapstats = {}
+
+    return hapstats
+

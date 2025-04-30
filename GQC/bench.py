@@ -129,6 +129,10 @@ def main() -> None:
     else:
         logging.basicConfig(filename=logfile, level=logging.INFO, format=logformat)
 
+    # log the command line:
+    call_command = " ".join(sys.argv)
+    logger.info(call_command)
+
     # check for necessary installed programs and write an output directory:
     check_for_bedtools()
     no_rscript = check_for_R()
@@ -243,7 +247,7 @@ def main() -> None:
 
     if not args.structureonly:
        logger.info("Step 6 (of 11): Writing bed files of regions covered by alignments of " + args.assembly + " to " + args.benchmark)
-       ## read in locations of het variants in the benchmark:
+       ## read in locations of het variants in the benchmark store in dictionary by chrom of position-sorted arrays:
        hetsites = phasing.read_hetsites(benchparams["hetsitevariants"])
        hetarrays = phasing.sort_chrom_hetsite_arrays(hetsites)
 

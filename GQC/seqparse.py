@@ -84,7 +84,10 @@ def write_test_genome_bedfile(queryobj, args, outputfiles, bedobjects):
         scaffstring = scaffold + "\t0\t" + str(scaffoldlength) + "\n"
         genomebedstring += scaffstring
     bedobjects["testgenomeregions"] = pybedtools.BedTool(genomebedstring, from_string = True)
-    bedobjects["testgenomeregions"].saveas(outputfiles["testgenomebed"])
+
+    # write bed file if it doesn't exist yet
+    if not os.path.exists(outputfiles["testgenomebed"]):
+        bedobjects["testgenomeregions"].saveas(outputfiles["testgenomebed"])
 
     return 0
 
@@ -105,7 +108,10 @@ def write_nonincluded_file(refobj, includedbed, nonincludedbed):
 def find_all_ns(queryobj, args, outputfiles, bedobjects)->list:
 
     # did the command-line arguments specify a pre-existing bedfile of N-stretch locations?
-    user_n_file = args.n_bedfile
+    if hasattr(args, 'n_bedfile'):
+        user_n_file = args.n_bedfile
+    else:
+        user_n_file = None
 
     if not user_n_file:
         p = re.compile("N+")
@@ -168,9 +174,9 @@ def find_all_ns(queryobj, args, outputfiles, bedobjects)->list:
         bedobjects["testnonnregions"] = pybedtools.BedTool(contigbedstring, from_string = True)
         bedobjects["testnregions"] = pybedtools.BedTool(gapbedstring, from_string = True)
 
-    if outputfiles["testnonnbed"]:
+    if outputfiles["testnonnbed"] and not os.path.exists(outputfiles["testnonnbed"]):
         bedobjects["testnonnregions"].saveas(outputfiles["testnonnbed"])
-    if outputfiles["testnbed"]:
+    if outputfiles["testnbed"] and not os.path.exists(outputfiles["testnbed"]):
         bedobjects["testnregions"].saveas(outputfiles["testnbed"])
 
     return 0
@@ -240,4 +246,20 @@ def compress_sequence(fastafile:str)->str:
         cfh.close()
 
     return [compressedfasta, chainfile]
+
+def write_assembly_bedfiles(fastaobj, args, compareparams, happrefix, bedobjects):
+
+    # write a "genome bed file" for this fasta object, naming it <happrefix>.genome.bed
+    testoutputdict = {"testgenomebed": args.prefix + "/" + happrefix + ".genome.bed"}
+    testbeddict = { }
+    write_test_genome_bedfile(fastaobj, args, testoutputdict, testbeddict)
+    bedobjects[happrefix + "genomeregions"] = testbeddict["testgenomeregions"]
+
+    # write a bed file of locations of Ns
+    testoutputdict["testnonnbed"] = args.prefix + "/" + happrefix + ".atgcseq.bed"
+    testoutputdict["testnbed"] = args.prefix + "/" + happrefix + ".nlocs.bed"
+    find_all_ns(fastaobj, args, testoutputdict, testbeddict)
+    bedobjects[happrefix + "nregions"] = testbeddict["testnregions"]
+    bedobjects[happrefix + "nonnregions"] = testbeddict["testnonnregions"]
+
 

@@ -22,7 +22,10 @@ def write_bedfiles(bamobj, pafaligns, refobj, queryobj, hetsites, testmatbed, te
 
     refcoveredstring = ""
     querycoveredstring = ""
-    user_variantfile = args.variantfile
+    if 'variantfile' in args:
+        user_variantfile = args.variantfile
+    else:
+        user_variantfile = None
     variants = []
     hetsitealleles = {}
     alignedscorecounts = []
@@ -49,8 +52,9 @@ def write_bedfiles(bamobj, pafaligns, refobj, queryobj, hetsites, testmatbed, te
                     variants.extend(align_variants(align, queryobj, query, querystart, queryend, refobj, ref, refstart, refend, strand, hetsites, hetsitealleles, alignedscorecounts, snverrorscorecounts, indelerrorscorecounts, True))
         # mark variants that are in excluded regions:
         logger.debug("Beginning to exclude variants in excluded regions")
-        variants = exclude_variants(variants, excludedbedobj)
-        logger.debug("Finished excluding variants in excluded regions")
+        if excludedbedobj:
+            variants = exclude_variants(variants, excludedbedobj)
+            logger.debug("Finished excluding variants in excluded regions")
     else:
         for pafdict in pafaligns:
             # all start/endpoints are 1-based
@@ -76,23 +80,26 @@ def write_bedfiles(bamobj, pafaligns, refobj, queryobj, hetsites, testmatbed, te
     refcoveredbed = pybedtools.BedTool(refcoveredstring, from_string = True)
     querycoveredbed = pybedtools.BedTool(querycoveredstring, from_string = True)
 
+    # if testpatbed is None, a single bed file should be written to the file passed as testmatbed:
     phap1 = re.compile(r'.*MAT.*')
     phap2 = re.compile(r'.*PAT.*')
     with open(testmatbed, "w") as tmb:
         for testint in sorted(querycoveredbed, key=lambda h: (h.chrom, h.start, h.stop)):
-            if phap1.match(testint.name):
+            if testpatbed is None or phap1.match(testint.name):
                 tmb.write(testint.chrom + "\t" + str(testint.start) + "\t" + str(testint.end) + "\t" + testint.name + "\n")
 
-    with open(testpatbed, "w") as tpb:
-        for testint in sorted(querycoveredbed, key=lambda h: (h.chrom, h.start, h.stop)):
-            if phap2.match(testint.name):
-                tpb.write(testint.chrom + "\t" + str(testint.start) + "\t" + str(testint.end) + "\t" + testint.name + "\n")
+    if testpatbed is not None:
+        with open(testpatbed, "w") as tpb:
+            for testint in sorted(querycoveredbed, key=lambda h: (h.chrom, h.start, h.stop)):
+                if phap2.match(testint.name):
+                    tpb.write(testint.chrom + "\t" + str(testint.start) + "\t" + str(testint.end) + "\t" + testint.name + "\n")
 
     with open(truthbed, "w") as rb:
         for truthint in sorted(refcoveredbed, key=lambda h: (h.chrom, h.start, h.stop)):
             rb.write(truthint.chrom + "\t" + str(truthint.start) + "\t" + str(truthint.end) + "\t" + truthint.name + "\n")
 
-    phasing.write_hetallele_bed(hetsitealleles, hetallelebed)
+    if hetsites:
+        phasing.write_hetallele_bed(hetsitealleles, hetallelebed)
 
     if user_variantfile is not None:
         with open(user_variantfile, "r") as vh:
@@ -385,7 +392,7 @@ def align_variants(align, queryobj, query:str, querystart:int, queryend:int, ref
     refseqlength = len(refseq)
 
     # use query positions to assess het alleles/covered regions:
-    if ref in chromhetsites:
+    if chromhetsites and ref in chromhetsites:
         desiredhets = chromhetsites[ref]
         for het in desiredhets:
             hetname = het.name
@@ -476,6 +483,7 @@ def split_align_on_indels(align, minindelsize=10000)->list:
             # if deletion is large enough, append the portion of the alignment to the left as a sub-align, but without the deletion
             if oplength >= minindelsize:
                 logger.debug("Align segment " + ref + ":" + str(refstart + reflastalignend) + "-" + str(refstart + refcurrentoffset) + " segment " + str(segnumber))
+                logger.debug("Deletion size " + str(op) + " is larger than " + str(minindelsize) + ": splitting")
                 segnumber = segnumber + 1
                 subalignlength = refcurrentoffset - reflastalignend
                 subaligninfo.append({'alignedquerystart':querylastalignend, 'alignedqueryend':querycurrentoffset, 'alignedrefstart':refstart+reflastalignend, 'alignedrefend':refstart+refcurrentoffset, 'cigarops':alignops[lastalignopindex:currentalignopindex], 'subalignlength':subalignlength, 'segnum':segnumber })
@@ -489,6 +497,7 @@ def split_align_on_indels(align, minindelsize=10000)->list:
             # if insertion is large enough, append the portion of the alignment to the left as a split align, but without the insertion
             if oplength >= minindelsize:
                 logger.debug("Align segment " + ref + ":" + str(refstart + reflastalignend) + "-" + str(refstart + refcurrentoffset) + " to " + str(querylastalignend) + "-" + str(querycurrentoffset) + " segment " + str(segnumber))
+                logger.debug("Insertion size " + str(op) + " is larger than " + str(minindelsize) + ": splitting")
                 segnumber = segnumber + 1
                 subalignlength = refcurrentoffset - reflastalignend
                 subaligninfo.append({'alignedquerystart':querylastalignend, 'alignedqueryend':querycurrentoffset, 'alignedrefstart':refstart+reflastalignend, 'alignedrefend':refstart+refcurrentoffset, 'cigarops':alignops[lastalignopindex:currentalignopindex], 'subalignlength':subalignlength, 'segnum':segnumber })
@@ -588,9 +597,7 @@ def create_subalignobjects(align, subaligninfo:list, hardcliplongest:bool)->list
         newqueryconsumed = count_consumed_query(cigartuples)
         if oldqueryconsumed != newqueryconsumed:
             logger.info("Cigar op length change for " + align.query_name)
-            print("Cigar op length change for " + align.query_name)
             logger.info("Old length: " + str(oldqueryconsumed) + "\nNew length: " + str(newqueryconsumed))
-            print("Old length: " + str(oldqueryconsumed) + "\nNew length: " + str(newqueryconsumed))
 
         # soft clip the longest unless hardcliplongest was specified
         if longest and not hardcliplongest:
@@ -765,11 +772,12 @@ def assess_overall_structure(aligndata:list, refobj, queryobj, outputfiles, bedo
     # since allexcludedregions bed object is merged,can subtract out excluded bases interval by interval
     for ref in refobj.references:
         benchmark_stats["numnonexcludedbases"][ref] = refobj.get_reference_length(ref)
-    for interval in bedobjects["allexcludedregions"]:
-        ref = interval.chrom
-        if ref in benchmark_stats["numnonexcludedbases"].keys():
-            benchmark_stats["numnonexcludedbases"][ref] = benchmark_stats["numnonexcludedbases"][ref] - len(interval)
-
+    if bedobjects["allexcludedregions"] is not None:
+        for interval in bedobjects["allexcludedregions"]:
+            ref = interval.chrom
+            if ref in benchmark_stats["numnonexcludedbases"].keys():
+                benchmark_stats["numnonexcludedbases"][ref] = benchmark_stats["numnonexcludedbases"][ref] - len(interval)
+    
     aligndict = {}
     for align in aligndata:
         refentry = align["target"]
@@ -813,7 +821,10 @@ def assess_overall_structure(aligndata:list, refobj, queryobj, outputfiles, bedo
             bedtool = pybedtools.BedTool(clusterbedstring, from_string = True)
             mergedbedtool = bedtoolslib.mergeintervals(bedtool)
             clusterbases = bedtoolslib.bedsum(mergedbedtool)
-            nonexcludedbedtool = bedtoolslib.subtractintervals(mergedbedtool, bedobjects["allexcludedregions"])
+            if bedobjects["allexcludedregions"] is not None:
+                nonexcludedbedtool = bedtoolslib.subtractintervals(mergedbedtool, bedobjects["allexcludedregions"])
+            else:
+                nonexcludedbedtool = mergedbedtool
             cluster["nonexcludedcoveredbases"] = bedtoolslib.bedsum(nonexcludedbedtool)
             logger.debug("Cluster on " + clusterquery + " has " + str(clusterbases) + " non-redundant bases, " + str(cluster["nonexcludedcoveredbases"]) + " of which are not excluded")
 
@@ -1085,6 +1096,12 @@ def split_disjoint_clusters(refalignclusters:list, maxdistance:int)->list:
 
     return refalignclusters + spinoffclusters
 
+def trim_bamfile_to_intervals(bamfile, intervals, outputbam, headerbam, args, sort=True, index=True):
+
+    [aligns, alignedintervals] = index_aligns_by_boundaries(bamfile, args)
+    subaligns = find_phaseblock_subaligns(intervals, alignedintervals, aligns)
+    write_aligns_to_bamfile(outputbam, subaligns, headerbam=headerbam, sort=sort, index=index)
+
 def index_aligns_by_boundaries(bamfile, args):
 
     logger.info("Indexing aligns in " + bamfile)
@@ -1111,6 +1128,8 @@ def find_phaseblock_subaligns(phaseblockints, alignedintervals, aligndict):
     # Intervals are in the direction of the query, even if the alignment is on the reverse strand
     phasedaligndict = {}
     phaseblockalignints = bedtoolslib.intersectintervals(phaseblockints, alignedintervals, wo=True)
+    numphaseblockaligns = len(phaseblockalignints)
+    logger.debug("There are " + str(numphaseblockaligns) + " aligned intervals within phase block intervals")
     for blockalign in phaseblockalignints:
         alignname = blockalign[12]
         if alignname not in phasedaligndict.keys():
@@ -1130,6 +1149,7 @@ def find_phaseblock_subaligns(phaseblockints, alignedintervals, aligndict):
         phaseblockintersects = phasedaligndict[alignname]
         subaligninfo = []
         segnumber = 1
+        logger.debug("Processing align " + alignname)
         for phaseblock in sorted(phaseblockintersects, key=lambda x:(x.start, x.stop)):
             pbstart = phaseblock.start
             pbend = phaseblock.end
@@ -1139,7 +1159,6 @@ def find_phaseblock_subaligns(phaseblockints, alignedintervals, aligndict):
             intersectstart = max(pbstart, alignstart)
             intersectend = min(pbend, alignend)
             logger.debug("Align " + alignname + " intersects phase block " + str(pbstart) + "-" + str(pbend) + " from " + str(intersectstart) + " to " + str(intersectend))
-            #print("Align " + alignname + " intersects phase block " + str(pbstart) + "-" + str(pbend) + " from " + str(intersectstart) + " to " + str(intersectend))
             
             if (intersectend - intersectstart) != intersectlength:
                 print(str(intersectlength) + " is not equal to " + str(intersectend) + "-" + str(intersectstart))

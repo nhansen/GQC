@@ -10,6 +10,7 @@ from pathlib import Path
 from collections import namedtuple
 from pybedtools import BedTool
 from GQC import seqparse
+from GQC import kmers
 from GQC import bedtoolslib
 
 # create namedtuple for bed intervals:
@@ -102,9 +103,6 @@ def map_benchmark_hapmers_onto_assembly(queryfasta, matmarkerfile:str, patmarker
     matoutputlocation = outputdir + "/" + mathapmeroutput + "." + assemblystub + ".kmers.merge.bed"
     patoutputlocation = outputdir + "/" + pathapmeroutput + "." + assemblystub + ".kmers.merge.bed"
     matpatoutputlocation = outputdir + "/" + matpathapmeroutput + "." + assemblystub + ".hapmers.merge.bed"
-    #matstdoutputfile = outputdir + "/" + mathapmeroutput + "." + assemblystub + ".writekmerbed.out"
-    #patstdoutputfile = outputdir + "/" + pathapmeroutput + "." + assemblystub + ".writekmerbed.out"
-    matpatstdoutputfile = outputdir + "/" + mathapmeroutput + "." + assemblystub + ".writekmerbed.out"
     tmpdir = currentdir + "/" + outputdir + "/tmp"
     if not os.path.exists(outputfiles["phasemarkerbed"]):
         if False:
@@ -117,6 +115,8 @@ def map_benchmark_hapmers_onto_assembly(queryfasta, matmarkerfile:str, patmarker
             proc = subprocess.Popen(matpatcommand, shell=True, env=env)
             proc.wait()
         else:
+            # map maternal/paternal kmers onto the query fasta:
+            #matpatoutputlocation = kmers.map_kmer_markers_onto_fasta(queryfasta:str, markerdbs:list, outputdir:str)
             matcommand = "KmerMap -v -m -T2 -P" + tmpdir + " " + matmarkerfile + " " + queryfasta + " " + outputdir + "/" + mathapmeroutput
             patcommand = "KmerMap -v -m -T2 -P" + tmpdir + " " + patmarkerfile + " " + queryfasta + " " + outputdir + "/" + pathapmeroutput
     
@@ -341,11 +341,17 @@ def find_phase_blocks_from_marker_bed(bedfile:str, scaffnames:list, shortnum=100
 def find_hapmer_phase_blocks_with_hmm(bedfile:str, hmmphaseblockbedfile:str, scaffnames:str, alpha:float, beta:float, distmultiplier=0):
 
     emissionprobs = [[1.0-alpha, alpha], [alpha, 1.0-alpha]]
-    # determine maternal/paternal haplotype names in marker bed
+
+    # determine maternal/paternal haplotype names in marker bed--these could be mat/pat or hap1/hap2
     [mathap, pathap] = find_haplotype_names_in_hapmer_bedfile(bedfile)
+    shortmathap = re.sub("_{0,1}not.*", "", mathap)
+    shortmathap = re.sub(".*\.", "", shortmathap)
+    shortpathap = re.sub("_{0,1}not.*", "", pathap)
+    shortpathap = re.sub(".*\.", "", shortpathap)
+    logger.debug("Using " + shortmathap + " for first haplotype name and " + shortpathap + " for second")
     phaseblockbedstring = ""
-    matcolor = '255,0,0'
-    patcolor = '0,0,255'
+    mathap1color = '255,0,0'
+    pathap2color = '0,0,255'
 
     haplogprobs = []
     # time 0 has no previous state values:
@@ -356,8 +362,10 @@ def find_hapmer_phase_blocks_with_hmm(bedfile:str, hmmphaseblockbedfile:str, sca
     scaffname = ""
     current_pos = 0
     intermarkercoords = []
-    matphaseblockbed = hmmphaseblockbedfile.replace('.bed', '.mat.bed')
-    patphaseblockbed = hmmphaseblockbedfile.replace('.bed', '.pat.bed')
+    phasedend1 = "." + mathap + ".bed"
+    phasedend2 = "." + pathap + ".bed"
+    matphaseblockbed = hmmphaseblockbedfile.replace('.bed', phasedend1)
+    patphaseblockbed = hmmphaseblockbedfile.replace('.bed', phasedend2)
     scaffnamemarkerbed = bedfile.replace('.bed', '.scaffnames.bed')
     mfh = open(matphaseblockbed, "w")
     pfh = open(patphaseblockbed, "w")
@@ -372,18 +380,26 @@ def find_hapmer_phase_blocks_with_hmm(bedfile:str, hmmphaseblockbedfile:str, sca
             end = int(end)
             midpos = int((start + end)/2)
             scaffname = scaffnames[scaffold]
+
+            # if new midpoint is smaller than current position and on same scaffold, skip it
+            # (this is usually because of overlapping regions from different haplogroups)
+            if current_scaffold == scaffold and midpos <= current_pos:
+                markerline = bfh.readline()
+                continue
+
             if markertype == pathap:
-                bedcolor = patcolor
+                bedcolor = pathap2color
             else:
-                bedcolor = matcolor
+                bedcolor = mathap1color
             sfh.write(scaffname + "\t" + str(start) + "\t" + str(end) + "\t" + markertype + "\t0\t+\t" + str(start) + "\t" + str(end) + "\t" + bedcolor + "\n")
+
             if current_scaffold != scaffold:
                 # write out max log prob states if there was a previous chromosome:
                 if current_scaffold != "":
                     if len(haplogprobs) > 0:
                         oldscaffname = scaffnames[current_scaffold]
                         lastlogprobs = haplogprobs.pop()
-                        write_scaffold_phase_blocks(oldscaffname, timepoint, lastlogprobs, previousstate, intermarkercoords, matcolor, patcolor, mfh, pfh)
+                        write_scaffold_phase_blocks(oldscaffname, timepoint, lastlogprobs, previousstate, intermarkercoords, mathap1color, pathap2color, shortmathap, shortpathap, mfh, pfh)
                     timepoint = 0
                 current_scaffold = scaffold
                 current_pos = 0
@@ -417,7 +433,7 @@ def find_hapmer_phase_blocks_with_hmm(bedfile:str, hmmphaseblockbedfile:str, sca
                 current_pos = midpos
                 timepoint = timepoint + 1
             markerline = bfh.readline()
-    write_scaffold_phase_blocks(scaffname, timepoint, lastlogprobs, previousstate, intermarkercoords, matcolor, patcolor, mfh, pfh)
+    write_scaffold_phase_blocks(scaffname, timepoint, lastlogprobs, previousstate, intermarkercoords, mathap1color, pathap2color, shortmathap, shortpathap, mfh, pfh)
 
     mfh.close()
     pfh.close()
@@ -432,7 +448,8 @@ def find_hapmer_phase_blocks_with_hmm(bedfile:str, hmmphaseblockbedfile:str, sca
 
 def find_haplotype_names_in_hapmer_bedfile(bedfile:str):
 
-    pmathap = re.compile(r'.*\.mat.*', re.IGNORECASE)
+    # if one found haplotype matches ".mat" or "[ab]1_not_[ab]2" (case insensitive), return it first--covers both benchmark and assembly comparison
+    pmathap = re.compile(r'.*\.mat.*|[qr]1_not_[qr]2', re.IGNORECASE)
     pcomma = re.compile(r'.*\,.*', re.IGNORECASE)
     # determine two haplotypes in the "name" field of the input bed file (assumes only two distinct values plus optionally "gap")
     with open(bedfile, "r") as bfh:
@@ -464,15 +481,15 @@ def find_haplotype_names_in_hapmer_bedfile(bedfile:str):
             print("Found hap2 " + hap2 + " and  hap1 " + hap1 + " as haplotypes.")
             return [hap2, hap1]
         else:
-            logger.info("Unable to determine mat/pat identities of hap1 " + hap1 + " and hap2 " + hap2)
-            print("Unable to determine mat/pat identities of hap1 " + hap1 + " and hap2 " + hap2)
+            logger.info("Unable to determine mat/pat or 1/2 identities of hap1 " + hap1 + " and hap2 " + hap2)
+            print("Unable to determine mat/pat or 1/2 identities of hap1 " + hap1 + " and hap2 " + hap2)
             exit(1)
     else:
         logger.info("Unable to find two haplotypes in " + bedfile)
         print("Unable to find two haplotypes in " + bedfile)
         return [None, None]
 
-def write_scaffold_phase_blocks(scaffoldname:str, timepoint:int, lastlogprobs:list, previousstate:list, intermarkercoords:list, matcolor:str, patcolor:str, mfh, pfh):
+def write_scaffold_phase_blocks(scaffoldname:str, timepoint:int, lastlogprobs:list, previousstate:list, intermarkercoords:list, hap1color:str, hap2color:str, mathap:str, pathap:str, hap1fh, hap2fh):
     prevstatelength = len(previousstate)
     intermarkerlength = len(intermarkercoords)
     #print("In write_scaffold_phase_blocks with " + str(prevstatelength) + " previous states and " + str(intermarkerlength) + " inter marker coords and " + str(timepoint) + " value of timepoint")
@@ -486,13 +503,13 @@ def write_scaffold_phase_blocks(scaffoldname:str, timepoint:int, lastlogprobs:li
         path[currenttime] = previousstate[currenttime + 1][path[currenttime + 1]]
     for currenttime in range(timepoint):
         if path[currenttime] == 0:
-            currenthap = 'mat'
-            fh = mfh
-            bedcolor = matcolor
+            currenthap = mathap
+            fh = hap1fh
+            bedcolor = hap1color
         else:
-            currenthap = 'pat'
-            fh = pfh
-            bedcolor = patcolor
+            currenthap = pathap
+            fh = hap2fh
+            bedcolor = hap2color
         blockstart = int((intermarkercoords[currenttime][0] + intermarkercoords[currenttime][1])/2.0)
         if currenttime < timepoint-1:
             blockend = int((intermarkercoords[currenttime+1][0] + intermarkercoords[currenttime+1][1])/2.0)

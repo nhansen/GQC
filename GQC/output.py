@@ -97,3 +97,10 @@ def name_constructgenome_output_files(args, outputdir:str)->dict:
     files["hap2maskedfasta"] = outputdir + "/" + prefix + ".hap2.masked.fasta"
 
     return files
+
+def name_compare_output_files(args, outputdir:str)->dict:
+    files = {}
+    #files[""] = outputdir + "/" + args.A + "_vs_" + args.B + ".bed"
+
+    return files
+

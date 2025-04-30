@@ -25,15 +25,24 @@ def classify_errors(refobj, queryobj, variants, hetsites, outputdict, benchparam
     testerrorfile = outputdict["testerrortypebed"]
     tfh = open(testerrorfile, "w")
 
-    excludederrorfile = outputdict["benchexcludederrortypebed"]
-    xfh = open(excludederrorfile, "w")
+    xfh = None
+    if "benchexcludederrortypebed" in outputdict.keys():
+        excludederrorfile = outputdict["benchexcludederrortypebed"]
+        xfh = open(excludederrorfile, "w")
     if args.vcf:
         bencherrorvcf = bencherrorfile.replace(".bed", "")
         bencherrorvcf = bencherrorvcf + ".vcf"
         vfh = open(bencherrorvcf, "w")
         vcfheader = vcf_header(args)
         vfh.write(vcfheader)
-        vfh.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t" + args.assembly + "\n")
+        if "assembly" in args:
+            samplename = args.assembly
+        elif "qname" in args:
+            samplename = args.qname
+        else:
+            samplename = "SAMPLE"
+
+        vfh.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t" + samplename + "\n")
 
     with open(bencherrorfile, "w") as efh:
         for variant in variants:
@@ -50,7 +59,7 @@ def classify_errors(refobj, queryobj, variants, hetsites, outputdict, benchparam
             #logger.debug("Splitting variant name " + variant.name + " and found contigname " + contigname)
             varname = variant.chrom + "_" + str(int(variant.start) + 1) + "_" + refallele + "_" + altallele
 
-            if varname in hetsites.keys():
+            if hetsites and varname in hetsites.keys():
                 errortype = 'PHASING'
                 errortypecolor = '255,0,0'
             else:
@@ -66,7 +75,7 @@ def classify_errors(refobj, queryobj, variants, hetsites, outputdict, benchparam
             if variant.qvscore is not None:
                 varqvscore = str(variant.qvscore)
 
-            if variant.excluded:
+            if xfh and variant.excluded:
                 xfh.write(variant.chrom + "\t" + str(benchvarstart) + "\t" + str(benchvarend) + "\t" + varname + "\t" + varqvscore + "\t" + alignstrand + "\t" + str(benchvarstart) + "\t" + str(benchvarend) + "\t" + errortypecolor + "\t" + errortype + "\t" + variant.vartype + "\t" + variant.name + "\n")
                 if args.vcf:
                     vcfrecord = vcf_format(variant, refobj, queryobj)
@@ -99,7 +108,8 @@ def classify_errors(refobj, queryobj, variants, hetsites, outputdict, benchparam
                 else:
                     stats["indellengthcounts"][lengthdiff] = 1
     tfh.close()
-    xfh.close()
+    if xfh:
+        xfh.close()
 
     if args.vcf:
         vfh.close()
@@ -155,7 +165,12 @@ def vcf_format(variant, refobj, queryobj):
 
 def vcf_header(args):
 
-    benchname = args.benchmark
+    if 'benchmark' in args:
+        benchname = args.benchmark
+    elif 'rname' in args:
+        benchname = args.rname
+    else:
+        benchname = 'REF'
     date = datetime.datetime.now()
     datestring = date.strftime("%Y%m%d")
     header_string = "##fileformat=VCFv4.5\n##fileDate=" + datestring + "\n##source=GQC\n##reference=" + benchname + "\n##FILTER=<ID=EXCLUDED, Description=\"In excluded region of the benchmark reference\">\n##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n"

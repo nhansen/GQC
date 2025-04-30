@@ -40,6 +40,33 @@ def align_assembly_to_benchmark_haplotypes(queryfasta:str, outputfiles:dict, ben
 
     return [matbamfile, patbamfile]
 
+def align_haplotype_to_haplotype(queryfasta:str, reffasta:str, outputprefix:str, benchparams, args):
+    if (args.aligner == "minimap2"):
+        outputbam = outputprefix + ".mm2defparams.sort.bam"
+        if not os.path.exists(outputbam):
+            logger.info("Output bam file " + outputbam + " does not exist--aligning with " + args.aligner)
+            minimap2_align(queryfasta, reffasta, outputprefix, args)
+        else:
+            logger.info("Skipping alignment of " + queryfasta + " to " + reffasta + " into bam file " + outputbam + " because it already exists!")
+    elif (args.aligner == "winnowmap2" or args.aligner == "winnowmap"):
+        outputbam = outputprefix + ".wm2defparams.sort.bam"
+        if not os.path.exists(outputbam):
+            winnowmap2_align(queryfasta, reffasta, outputprefix, benchparams["winnowmaprepkmers"], args)
+        else:
+            logger.info("Skipping alignment of " + queryfasta + " to " + reffasta + " into bam file " + outputbam + " because it already exists!")
+    elif (args.aligner == "wfmash"):
+        outputbam = outputprefix + ".wfmdefparams.sort.bam"
+        if not os.path.exists(outputbam):
+            wfmash_align(queryfasta, reffasta, outputprefix, args)
+        else:
+            logger.info("Skipping alignment of " + queryfasta + " to " + reffasta + " into bam file " + outputbam + " because it already exists!")
+    else:
+        logger.critical("Unrecognized aligner " + args.aligner)
+        print("Unrecognized aligner " + args.aligner)
+        exit(1)
+
+    return outputbam
+
 def minimap2_align(queryfasta:str, benchfasta:str, prefix:str, args)->list:
     env = os.environ.copy()
     env['LD_LIBRARY_PATH'] = os.getcwd()
