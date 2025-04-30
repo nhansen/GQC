@@ -101,6 +101,7 @@ def read_config_data(args)->dict:
     configvals = {}
     if not configpath.exists():
         logger.critical("A config file must exist in the default location benchconfig.txt or be specified with the --config option.")
+        print("A config file must exist in the default location benchconfig.txt or be specified with the --config option.")
         exit(1)
     else:
         logger.info("Using resource locations from " + configfile)
@@ -114,6 +115,17 @@ def read_config_data(args)->dict:
                     value = match.group(2)
                     configvals[key] = value
                 configline = cr.readline()
+
+        # add the resource directory location for all non-absolute paths:
+        resourcedir = configvals["resourcedir"]
+        if (os.path.exists(resourcedir)):
+            for configkey in configvals.keys():
+                if configvals[configkey][0] != "/":
+                    configvals[configkey] = resourcedir + "/" + configvals[configkey]
+        else:
+            logger.critical("The resource directory specified in the config file as \"resourcedir\" does not exist. Please change it to the location of files from the resource tarball")
+            print("The resource directory specified in the config file as \"resourcedir\" does not exist. Please change it to the location of files from the resource tarball")
+            exit(1)
 
     return configvals
 
