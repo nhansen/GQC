@@ -6,24 +6,28 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-def mergebed(bedfile:str, collapsecolumns='4', collapseoutput='collapse', collapsedelim='|')->str:
+def mergebed(bedfile:str, collapsecolumns='4', collapseoutput='collapse', collapsedelim='|', skipifexists=True)->str:
 
     mergedbed = bedfile.replace(".bed", ".merged.bed")
 
-    logger.debug("Merging " + bedfile + " to create " + mergedbed)
+    if not skipifexists or not os.path.exists(mergedbed):
+        logger.debug("Merging " + bedfile + " to create " + mergedbed)
 
-    unmergedints = pybedtools.bedtool.BedTool(bedfile)
-    numunmerged = unmergedints.count()
+        unmergedints = pybedtools.bedtool.BedTool(bedfile)
+        numunmerged = unmergedints.count()
    
-    logger.debug("There are " + str(numunmerged) + " unmerged intervals")
+        logger.debug("There are " + str(numunmerged) + " unmerged intervals")
 
-    if numunmerged > 0:
-        mergedints = unmergedints.merge(c=collapsecolumns, o=collapseoutput, delim=collapsedelim)
-        mergedints.saveas(mergedbed)
+        if numunmerged > 0:
+            mergedints = unmergedints.merge(c=collapsecolumns, o=collapseoutput, delim=collapsedelim)
+            mergedints.saveas(mergedbed)
+        else:
+            with open(mergedbed, 'a'):
+                os.utime(mergedbed, None) 
+            mergedints = unmergedints
     else:
-        with open(mergedbed, 'a'):
-            os.utime(mergedbed, None) 
-        mergedints = unmergedints
+        logger.debug("Skipping merging of " + bedfile + ": merged bedfile " + mergedbed + " already exists")
+        mergedints = pybedtools.bedtool.BedTool(mergedbed)
 
     return [mergedints, mergedbed]
 

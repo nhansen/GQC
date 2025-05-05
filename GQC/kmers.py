@@ -78,10 +78,13 @@ def map_kmer_markers_onto_fasta(fastafile:str, markerfilelist:list, outputdir:st
     
     outputfile = outputdir + "/" + assemblyroot + ".kmers.merge.bed"
 
-    logger.debug("Merging output files into " + outputfile)
-    mergesortcommand = "cat" + mergefilestring + " | sort -k1,1n -k2,2n -k3,3n " + " > " + outputfile
-    logger.debug(mergesortcommand)
-    os.system(mergesortcommand)
+    if not os.path.exists(outputfile):
+        logger.debug("Merging output files into " + outputfile)
+        mergesortcommand = "cat" + mergefilestring + " | sort -k1,1n -k2,2n -k3,3n " + " > " + outputfile
+        logger.debug(mergesortcommand)
+        os.system(mergesortcommand)
+    else:
+        logger.debug("Skipping merging of kmer files into " + outputfile + ": output already exists")
    
     return outputfile
 
