@@ -33,6 +33,15 @@ def check_for_bedtools():
         exit(1)
     return 0
 
+def check_for_aligner(aligner:str):
+    if aligner == "winnowmap2":
+        aligner = "winnowmap"
+    if shutil.which(aligner) is None:
+        print("You don\'t seem to have the required aligner " + aligner + " installed in your path. Please install it")
+        logger.critical("You don\'t seem to have the required aligner " + aligner + " installed in your path. Please install it")
+        exit(1)
+    return 0
+
 def check_for_R():
     if shutil.which("Rscript") is None:
         print("You don\'t seem to have Rscript in your path. Plots will not be generated")
@@ -62,7 +71,7 @@ def init_argparse() -> argparse.ArgumentParser:
     parser.add_argument('-q', '--queryfasta', type=str, required=True, help='(indexed) fasta file for haploid or diploid test assembly')
     parser.add_argument('-p', '--prefix', type=str, required=True, help='prefix for output directory name, filenames have assembly name in prefix (see -A)')
     parser.add_argument('-t', type=int, required=False, default=2, help='number of processors to use')
-    parser.add_argument('-a', '--aligner', type=str, required=False, default='winnowmap2', help='aligner to use when comparing assembly to benchmark, can be minimap2 or winnowmap2 (default winnowmap2)')
+    parser.add_argument('-a', '--aligner', type=str, required=False, default='minimap2', help='aligner to use when comparing assembly to benchmark, can be minimap2 or winnowmap2 (default winnowmap2)')
     parser.add_argument('-m', '--minalignlength', type=int, required=False, default=500, help='minimum length of alignment required to be included in alignment statistics and error counts')
     parser.add_argument('--mincontiglength', type=int, required=False, default=500, help='minimum length for contig to be included in contig statistics')
     parser.add_argument('--minns', type=int, required=False, default=10, help='minimum number of consecutive Ns required to break scaffolds into contigs')
@@ -147,6 +156,7 @@ def main() -> None:
 
     # check for necessary installed programs and write an output directory:
     check_for_bedtools()
+    check_for_aligner(args.aligner)
     no_rscript = check_for_R()
 
     # dictionary of parameters from the benchmark configuration file:
@@ -300,7 +310,7 @@ def main() -> None:
                 plots.plot_mononuc_accuracy(args.assembly, args.benchmark, outputdir, benchparams["resourcedir"])
                 if len(alignedscorecounts) > 0:
                     plots.plot_qv_score_concordance(args.assembly, args.benchmark, outputdir, benchparams["resourcedir"])
-        plots.plot_svcluster_align_plots(args.assembly, args.benchmark, outputfiles["alignplotdir"], benchparams["resourcedir"], refobj)
+        plots.plot_svcluster_align_plots(args.assembly, args.benchmark, outputfiles["alignplotdir"], refobj, mode='bench')
 
 
 if __name__ == "__main__":

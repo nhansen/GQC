@@ -40,19 +40,31 @@ def plot_qv_score_concordance(assemblyname:str, benchname:str, outputdir:str, re
         returnvalue = os.system(plotcommand)
     return returnvalue
 
-def plot_svcluster_align_plots(assemblyname:str, benchname:str, outputdir:str, resourcedir:str, refobj):
+def plot_svcluster_align_plots(assemblyname:str, benchname:str, outputdir:str, refobj, mode='bench', prefix=''):
     rfile_res = importlib.resources.files("GQC").joinpath('PlotChromAligns.R')
 
-    chromalignbedfiles = glob.glob(outputdir + "/*.clusters.bed")
+    chromalignbedfiles = glob.glob(outputdir + "/" + prefix + "*.clusters.bed")
     returnvalues = []
     with importlib.resources.as_file(rfile_res) as rfile:
         for chrombed in chromalignbedfiles:
-            chromosome = chrombed.replace(".clusters.bed", "")
-            chromosome = re.sub(r".*/*clustered_aligns\.", "", chromosome)
-            chromlength = refobj.get_reference_length(chromosome)
-            plotcommand = "Rscript " + str(rfile) + " " + chrombed + " " + assemblyname + " " + benchname + " " + outputdir + " " + resourcedir + " " + str(chromlength)
-            logger.debug(plotcommand)
-            returnvalues.append(os.system(plotcommand))
+            if mode == 'bench':
+                chromosome = chrombed.replace(".clusters.bed", "")
+                chromosome = re.sub(r".*/*clustered_aligns\.", "", chromosome)
+                chromlength = refobj.get_reference_length(chromosome)
+                plotcommand = "Rscript " + str(rfile) + " " + chrombed + " " + assemblyname + " " + benchname + " " + outputdir + " " + str(chromlength)
+                logger.debug(plotcommand)
+                returnvalues.append(os.system(plotcommand))
+            elif mode == 'compare':
+                chromosome = chrombed.replace(".clusters.bed", "")
+                chromosome = re.sub(r".*/*clustered_aligns\.", "", chromosome)
+                chromlength = refobj.get_reference_length(chromosome)
+                plotcommand = "Rscript " + str(rfile) + " " + chrombed + " " + assemblyname + " " + benchname + " " + outputdir + " " + str(chromlength)
+                logger.debug(plotcommand)
+                returnvalues.append(os.system(plotcommand))
+            else:
+                logger.critical("Unknown mode passed to plot_svcluster_align_plots: " + str(mode))
+                returnvalues.append(1)
+
     return returnvalues
 
 def plot_sv_indel_profile_plot(assemblyname:str, benchname:str, outputdir:str, resourcedir:str, refobj):
