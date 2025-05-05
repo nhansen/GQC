@@ -19,7 +19,7 @@ from GQC import alignparse
 from GQC import errors
 from GQC import mummermethods
 from GQC import structvar
-#from GQC import plots
+from GQC import plots
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +70,7 @@ def init_argparse() -> argparse.ArgumentParser:
     parser.add_argument('--r2fasta', type=str, required=False, help='path of a fasta file for haplotype 2 of the reference assembly')
     parser.add_argument('-p', '--prefix', type=str, required=True, help='prefix for output directory name, filenames use assembly names and this prefix (see -Q, -R)')
     parser.add_argument('-t', type=int, required=False, default=2, help='number of processors to use')
-    parser.add_argument('-a', '--aligner', type=str, required=False, default='winnowmap2', help='aligner to use when comparing test assembly to reference assembly, can be minimap2 or winnowmap2 (default winnowmap2)')
+    parser.add_argument('-a', '--aligner', type=str, required=False, default='minimap2', help='aligner to use when comparing test assembly to reference assembly, can be minimap2 or winnowmap2 (default winnowmap2)')
     parser.add_argument('--alpha', type=float, required=False, default=0.05, help='emission probability for displaying haplotype markers for the wrong haplotype in HMM phase block algorithm')
     parser.add_argument('--beta', type=float, required=False, default=0.01, help='transition probability for changing haplotype state between adjacent markers (regardless of distance between them')
     parser.add_argument('-c', '--config', type=str, required=False, default="compareconfig.txt", help='path to a config file specifying locations of files used by GQC compare')
@@ -223,8 +223,8 @@ def main() -> None:
         q1phaseblockints = phasing.find_hapmer_phase_blocks_with_hmm(q1hapmerbed, q1phaseblockbed, hapdata['q1']['pysamobj'].references, alpha, transitionprob, 0)
         if not os.path.exists(q1phaseblockmergedbed):
             q1phaseblockints.saveas(q1phaseblockmergedbed)
-        q1_to_r1_phaseblockints = q1phaseblockints.filter(lambda x: x.name=="r1_not_r2.kmers.k40")
-        q1_to_r2_phaseblockints = q1phaseblockints.filter(lambda x: x.name=="r2_not_r1.kmers.k40")
+        q1_to_r1_phaseblockints = q1phaseblockints.filter(lambda x: x.name=="r1")
+        q1_to_r2_phaseblockints = q1phaseblockints.filter(lambda x: x.name=="r2")
 
         q2phaseblockbed = outputdir + "/" + hapdata['q2']['prefix'] + ".hmmphasedscaffolds.bed"
         q2phaseblockmergedbed = q2phaseblockbed.replace('.bed', '.merged.bed')
@@ -232,8 +232,8 @@ def main() -> None:
         q2phaseblockints = phasing.find_hapmer_phase_blocks_with_hmm(q2hapmerbed, q2phaseblockbed, hapdata['q2']['pysamobj'].references, alpha, transitionprob, 0)
         if not os.path.exists(q2phaseblockmergedbed):
             q2phaseblockints.saveas(q2phaseblockmergedbed)
-        q2_to_r1_phaseblockints = q2phaseblockints.filter(lambda x: x.name=="r1_not_r2.kmers.k40")
-        q2_to_r2_phaseblockints = q2phaseblockints.filter(lambda x: x.name=="r2_not_r1.kmers.k40")
+        q2_to_r1_phaseblockints = q2phaseblockints.filter(lambda x: x.name=="r1")
+        q2_to_r2_phaseblockints = q2phaseblockints.filter(lambda x: x.name=="r2")
 
         ##stats.write_phase_block_stats(phaseblockints, outputfiles, benchmark_stats, args)
         #q1_to_r1_numintervals = len(q1_to_r1_phaseblockints)
@@ -326,6 +326,8 @@ def main() -> None:
         # (by default, rlis_aligndata are split alignments filtered for RLIS)
         outputfiles = {"alignplotdir":outputdir + "/alignmentplots", "alignplotprefix":outputdir + "/alignmentplots/" + comparison + ".clustered_aligns",
                 "structvariantbed":outputdir + "/" + comparison + ".svs.bed"}
+        if comparison not in comparisonoutputfiles.keys():
+            comparisonoutputfiles[comparison] = {}
         comparisonoutputfiles[comparison]['alignplotprefix'] = outputdir + "/alignmentplots/" + comparison + ".clustered_aligns"
         comparisonoutputfiles[comparison]['structvariantbed'] = outputdir + "/" + comparison + ".svs.bed"
         bedregiondict = {"allexcludedregions":None}
@@ -363,8 +365,8 @@ def main() -> None:
             outputfiles["testerrortypebed"] = outputdir + "/" + comparison + ".querydiscrepancies.bed"
             outputfiles["bencherrortypebed"] = outputdir + "/" + comparison + ".refdiscrepancies.bed"
             errors.classify_errors(refobj, queryobj, variants, hetsites, outputfiles, compareparams, benchmark_stats, args)
-            comparisonoutputfiles[comparison][queryerrorbed] = outputdir + "/" + comparison + ".querydiscrepancies.bed"
-            comparisonoutputfiles[comparison][referrorbed] = outputdir + "/" + comparison + ".refdiscrepancies.bed"
+            comparisonoutputfiles[comparison]['queryerrorbed'] = outputdir + "/" + comparison + ".querydiscrepancies.bed"
+            comparisonoutputfiles[comparison]['referrorbed'] = outputdir + "/" + comparison + ".refdiscrepancies.bed"
             #stats.write_qv_stats(benchmark_stats, alignedscorecounts, snverrorscorecounts, indelerrorscorecounts, outputfiles, args)
 
             ### evaluate mononucleotide runs:
@@ -375,10 +377,10 @@ def main() -> None:
             #stats.write_mononuc_stats(mononucstats, outputfiles, benchmark_stats, args)
     #
     # Report general statistics across all haplotype comparisons:
-    stats.write_comparison_stats_file(hapdata, comparisondata, comparisonoutputfiles)
+    #stats.write_comparison_stats_file(hapdata, comparisondata, comparisonoutputfiles)
 
     ## plot alignment coverage across assembly and genome:
-    #if not no_rscript:
+    if not no_rscript:
         #logger.info("Step 11 (of 11): Creating plots")
         #if not args.structureonly:
             #plots.plot_benchmark_align_coverage(args.assembly, args.benchmark, outputdir, benchparams)
@@ -388,7 +390,9 @@ def main() -> None:
                 #plots.plot_mononuc_accuracy(args.assembly, args.benchmark, outputdir, benchparams["resourcedir"])
                 #if len(alignedscorecounts) > 0:
                     #plots.plot_qv_score_concordance(args.assembly, args.benchmark, outputdir, benchparams["resourcedir"])
-        #plots.plot_svcluster_align_plots(args.assembly, args.benchmark, outputfiles["alignplotdir"], benchparams["resourcedir"], refobj)
+        for comparison in comparisondata.keys():
+            refobj = comparisondata[comparison]['refobj']
+            plots.plot_svcluster_align_plots(args.qname, args.rname, outputfiles["alignplotdir"], refobj, mode='compare', prefix=comparison)
 
 
 if __name__ == "__main__":
