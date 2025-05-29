@@ -37,16 +37,23 @@ def mergeintervals(intervals, collapsecolumns='4', collapseoutput='collapse', co
 
     return mergedints
 
-def mergemultiplebedfiles(bedfilelist:list):
+def mergemultiplebedfiles(bedfilelist:list, sort=True, postmerge=False):
 
     if len(bedfilelist) < 2:
         logger.critical("Cannot call mergemultiplebedfiles on less than two bed files!")
         exit(1)
+    if len(bedfilelist) > 2:
+        logger.critical("Theres a bug in GQC bedtoolslib.py so it cant yet merge multiple excluded regions bed files!")
+        exit(1)
 
     firstbedtool = pybedtools.bedtool.BedTool(bedfilelist[0])
+    #allbedtools = firstbedtool.cat(bedfilelist[1:], postmerge=postmerge)
     allbedtools = firstbedtool.cat(bedfilelist[1])
 
-    return allbedtools
+    if sort:
+        return allbedtools.sort()
+    else:
+        return allbedtools
 
 def bedsum(intervals)->int:
 
