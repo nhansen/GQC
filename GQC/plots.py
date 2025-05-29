@@ -41,10 +41,14 @@ def plot_qv_score_concordance(assemblyname:str, benchname:str, outputdir:str, re
     return returnvalue
 
 def plot_svcluster_align_plots(assemblyname:str, benchname:str, outputdir:str, refobj, mode='bench', prefix=''):
+
     rfile_res = importlib.resources.files("GQC").joinpath('PlotChromAligns.R')
+    if mode == 'compare':
+        rfile_res = importlib.resources.files("GQC").joinpath('PlotAssemblyContigAligns.R')
 
     chromalignbedfiles = glob.glob(outputdir + "/" + prefix + "*.clusters.bed")
     returnvalues = []
+    chromdone = {}
     with importlib.resources.as_file(rfile_res) as rfile:
         for chrombed in chromalignbedfiles:
             if mode == 'bench':
@@ -57,10 +61,13 @@ def plot_svcluster_align_plots(assemblyname:str, benchname:str, outputdir:str, r
             elif mode == 'compare':
                 chromosome = chrombed.replace(".clusters.bed", "")
                 chromosome = re.sub(r".*/*clustered_aligns\.", "", chromosome)
+                if chromosome in chromdone.keys():
+                    continue
                 chromlength = refobj.get_reference_length(chromosome)
-                plotcommand = "Rscript " + str(rfile) + " " + chrombed + " " + assemblyname + " " + benchname + " " + outputdir + " " + str(chromlength)
+                plotcommand = "Rscript " + str(rfile) + " " + chromosome + " " + assemblyname + " " + benchname + " " + outputdir + " " + str(chromlength)
                 logger.debug(plotcommand)
                 returnvalues.append(os.system(plotcommand))
+                chromdone[chromosome] = True
             else:
                 logger.critical("Unknown mode passed to plot_svcluster_align_plots: " + str(mode))
                 returnvalues.append(1)

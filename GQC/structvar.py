@@ -34,25 +34,26 @@ def write_structural_errors(aligndata:list, refobj, queryobj, outputdict, bmstat
                         querydiff = queryend - current_align["querystart"]
                         query1 = querystart
                         query2 = current_align["queryend"]
-    
-                    if refdiff < querydiff:
+   
+                    netdiff = querydiff - refdiff
+                    if refdiff < querydiff: # refdiff less than querydiff (insertion), netshift positive
                         if refdiff > 0:
-                            sfh.write(refentry + "\t" + str(current_align["targetend"] - 1) + "\t" + str(refstart) + "\tSameContigInsertion\t" + query + "\t" + str(query1) + "\t" + str(query2) + "\t" + str(current_align["targetend"]) + "\t" + str(refstart) + "\t" + strand + "\n")
+                            sfh.write(refentry + "\t" + str(current_align["targetend"] - 1) + "\t" + str(refstart) + "\tSameContigInsertion\t" + query + "\t" + str(query1) + "\t" + str(query2) + "\t" + str(current_align["targetend"]) + "\t" + str(refstart) + "\t" + str(netdiff) + "\t" + strand + "\n")
                         else:
-                            sfh.write(refentry + "\t" + str(refstart - 1) + "\t" + str(current_align["targetend"]) + "\tSameContigInsertion\t" + query + "\t" + str(query1) + "\t" + str(query2) + "\t" + str(current_align["targetend"]) + "\t" + str(refstart) + "\t" + strand + "\n")
-                    else:
+                            sfh.write(refentry + "\t" + str(refstart - 1) + "\t" + str(current_align["targetend"]) + "\tSameContigInsertion\t" + query + "\t" + str(query1) + "\t" + str(query2) + "\t" + str(current_align["targetend"]) + "\t" + str(refstart) + "\t" + str(netdiff) + "\t" + strand + "\n")
+                    else: # refdiff greater than than querydiff (deletion), netshift negative
                         if refdiff > 0:
-                            sfh.write(refentry + "\t" + str(current_align["targetend"] - 1) + "\t" + str(refstart) + "\tSameContigDeletion\t" + query + "\t" + str(query1) + "\t" + str(query2) + "\t" + str(current_align["targetend"]) + "\t" + str(refstart) + "\t" + strand + "\n")
+                            sfh.write(refentry + "\t" + str(current_align["targetend"] - 1) + "\t" + str(refstart) + "\tSameContigDeletion\t" + query + "\t" + str(query1) + "\t" + str(query2) + "\t" + str(current_align["targetend"]) + "\t" + str(refstart) + "\t" + str(netdiff) + "\t" + strand + "\n")
                         else:
-                            sfh.write(refentry + "\t" + str(refstart - 1) + "\t" + str(current_align["targetend"]) + "\tSameContigDeletion\t" + query + "\t" + str(query1) + "\t" + str(query2) + "\t" + str(current_align["targetend"]) + "\t" + str(refstart) + "\t" + strand + "\n")
+                            sfh.write(refentry + "\t" + str(refstart - 1) + "\t" + str(current_align["targetend"]) + "\tSameContigDeletion\t" + query + "\t" + str(query1) + "\t" + str(query2) + "\t" + str(current_align["targetend"]) + "\t" + str(refstart) + "\t" + str(netdiff) + "\t" + strand + "\n")
     
                 elif refentry == current_align["target"]: # strand switch or new contig:
                     queryentries = query + "/" + current_align["query"]
                     strands = strand + "/" + current_align["strand"]
                     if refdiff > 0:
-                        sfh.write(refentry + "\t" + str(current_align["targetend"] - 1) + "\t" + str(refstart) + "\tBetweenContigDeletion\t" + queryentries + "\t.\t.\t" + str(current_align["targetend"]) + "\t" + str(refstart) + "\t" + strands + "\n")
+                        sfh.write(refentry + "\t" + str(current_align["targetend"] - 1) + "\t" + str(refstart) + "\tBetweenContigDeletion\t" + queryentries + "\t.\t.\t" + str(current_align["targetend"]) + "\t" + str(refstart) + "\tNA\t" + strands + "\n")
                     else:
-                        sfh.write(refentry + "\t" + str(refstart - 1) + "\t" + str(current_align["targetend"]) + "\tBetweenContigInsertion\t" + queryentries + "\t.\t.\t" + str(current_align["targetend"]) + "\t" + str(refstart) + "\t" +strands + "\n")
+                        sfh.write(refentry + "\t" + str(refstart - 1) + "\t" + str(current_align["targetend"]) + "\tBetweenContigInsertion\t" + queryentries + "\t.\t.\t" + str(current_align["targetend"]) + "\t" + str(refstart) + "\tNA\t" +strands + "\n")
             current_align = align
 
     return 0

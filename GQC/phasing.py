@@ -338,12 +338,26 @@ def find_phase_blocks_from_marker_bed(bedfile:str, scaffnames:list, shortnum=100
 
 # Use the Viterbi algorithm to determine the most probable chain of phase block haplotype states #
 # given a set of observed haplotype-specific kmers from the benchmark along the test assemblies' scaffolds #
-def find_hapmer_phase_blocks_with_hmm(bedfile:str, hmmphaseblockbedfile:str, scaffnames:str, alpha:float, beta:float, distmultiplier=0):
+# scaffold fasta object should be passed if you want phase block coordinates to extend to the ends of the 
+# scaffolds--otherwise they will only extend to the outermost marker positions!
+def find_hapmer_phase_blocks_with_hmm(bedfile:str, hmmphaseblockbedfile:str, scafffastaobj:str, alpha:float, beta:float, distmultiplier=0 ):
 
     emissionprobs = [[1.0-alpha, alpha], [alpha, 1.0-alpha]]
 
     # determine maternal/paternal haplotype names in marker bed--these could be mat/pat or hap1/hap2
     [mathap, pathap] = find_haplotype_names_in_hapmer_bedfile(bedfile)
+
+    if mathap is None:
+        logger.info("Only haplotype found in " + bedfile + " is " + pathap + "--returning entirely one state")
+        mathap = "missinghap"
+    if pathap is None:
+        logger.info("Only haplotype found in " + bedfile + " is " + mathap + "--returning entirely one state")
+        pathap = "missinghap"
+
+    if mathap == "missinghap" and pathap == "missinghap":
+        logger.critical("No haplotype markers found for phasing chromosomes!")
+        exit(1)
+
     shortmathap = re.sub("_{0,1}not.*", "", mathap)
     shortmathap = re.sub(".*\.", "", shortmathap)
     shortpathap = re.sub("_{0,1}not.*", "", pathap)
@@ -370,6 +384,7 @@ def find_hapmer_phase_blocks_with_hmm(bedfile:str, hmmphaseblockbedfile:str, sca
     mfh = open(matphaseblockbed, "w")
     pfh = open(patphaseblockbed, "w")
     sfh = open(scaffnamemarkerbed, "w")
+    scaffnames = scafffastaobj.references
     with open(bedfile, "r") as bfh:
         markerline = bfh.readline()
         while markerline:
@@ -399,7 +414,8 @@ def find_hapmer_phase_blocks_with_hmm(bedfile:str, hmmphaseblockbedfile:str, sca
                     if len(haplogprobs) > 0:
                         oldscaffname = scaffnames[current_scaffold]
                         lastlogprobs = haplogprobs.pop()
-                        write_scaffold_phase_blocks(oldscaffname, timepoint, lastlogprobs, previousstate, intermarkercoords, mathap1color, pathap2color, shortmathap, shortpathap, mfh, pfh)
+                        scafflength = scafffastaobj.get_reference_length(oldscaffname)
+                        write_scaffold_phase_blocks(oldscaffname, scafflength, timepoint, lastlogprobs, previousstate, intermarkercoords, mathap1color, pathap2color, shortmathap, shortpathap, mfh, pfh)
                     timepoint = 0
                 current_scaffold = scaffold
                 current_pos = 0
@@ -433,7 +449,9 @@ def find_hapmer_phase_blocks_with_hmm(bedfile:str, hmmphaseblockbedfile:str, sca
                 current_pos = midpos
                 timepoint = timepoint + 1
             markerline = bfh.readline()
-    write_scaffold_phase_blocks(scaffname, timepoint, lastlogprobs, previousstate, intermarkercoords, mathap1color, pathap2color, shortmathap, shortpathap, mfh, pfh)
+
+    scafflength = scafffastaobj.get_reference_length(scaffname)
+    write_scaffold_phase_blocks(scaffname, scafflength, timepoint, lastlogprobs, previousstate, intermarkercoords, mathap1color, pathap2color, shortmathap, shortpathap, mfh, pfh)
 
     mfh.close()
     pfh.close()
@@ -487,12 +505,22 @@ def find_haplotype_names_in_hapmer_bedfile(bedfile:str):
     else:
         logger.info("Unable to find two haplotypes in " + bedfile)
         print("Unable to find two haplotypes in " + bedfile)
-        return [None, None]
+        if hap1 is not None:
+            if pmathap.match(hap1):
+                return[hap1, hap2]
+            else:
+                return [hap2, hap1]
+        if hap2 is not None:
+            if pmathap.match(hap2):
+                return [hap2, hap1]
+            else:
+                return [hap1, hap2]
 
-def write_scaffold_phase_blocks(scaffoldname:str, timepoint:int, lastlogprobs:list, previousstate:list, intermarkercoords:list, hap1color:str, hap2color:str, mathap:str, pathap:str, hap1fh, hap2fh):
+        return [hap1, hap2]
+
+def write_scaffold_phase_blocks(scaffoldname:str, scafflength:int, timepoint:int, lastlogprobs:list, previousstate:list, intermarkercoords:list, hap1color:str, hap2color:str, mathap:str, pathap:str, hap1fh, hap2fh):
     prevstatelength = len(previousstate)
     intermarkerlength = len(intermarkercoords)
-    #print("In write_scaffold_phase_blocks with " + str(prevstatelength) + " previous states and " + str(intermarkerlength) + " inter marker coords and " + str(timepoint) + " value of timepoint")
     path = [0] * timepoint
     if lastlogprobs[0] > lastlogprobs[1]:
         path[timepoint-1] = 0
@@ -510,11 +538,16 @@ def write_scaffold_phase_blocks(scaffoldname:str, timepoint:int, lastlogprobs:li
             currenthap = pathap
             fh = hap2fh
             bedcolor = hap2color
-        blockstart = int((intermarkercoords[currenttime][0] + intermarkercoords[currenttime][1])/2.0)
+
+        if currenttime == 0:
+            blockstart = 0
+        else:
+            blockstart = int((intermarkercoords[currenttime][0] + intermarkercoords[currenttime][1])/2.0)
+
         if currenttime < timepoint-1:
             blockend = int((intermarkercoords[currenttime+1][0] + intermarkercoords[currenttime+1][1])/2.0)
         else:
-            blockend = int(intermarkercoords[currenttime][1])
+            blockend = scafflength
         fh.write(scaffoldname + "\t" + str(blockstart) + "\t" + str(blockend) + "\t" + currenthap + "\t0\t+\t" + str(blockstart) + "\t" + str(blockend) + "\t" + bedcolor + "\n")
 
     return 0
