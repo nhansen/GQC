@@ -3,9 +3,11 @@ import os
 import re
 import shutil
 import pysam
+from pysam import VariantFile
 import argparse
 import logging
-#from pybedtools import BedTool
+import pybedtools
+from pybedtools import BedTool
 #import importlib.resources
 from pathlib import Path
 from GQC import output
@@ -220,7 +222,7 @@ def main() -> None:
         q1phaseblockbed = outputdir + "/" + hapdata['q1']['prefix'] + ".hmmphasedscaffolds.bed"
         q1phaseblockmergedbed = q1phaseblockbed.replace('.bed', '.merged.bed')
         logger.info("Writing phase block bed file of haplotype kmers of " + args.rname + " present within the " + args.qname + " assembly")
-        q1phaseblockints = phasing.find_hapmer_phase_blocks_with_hmm(q1hapmerbed, q1phaseblockbed, hapdata['q1']['pysamobj'].references, alpha, transitionprob, 0)
+        q1phaseblockints = phasing.find_hapmer_phase_blocks_with_hmm(q1hapmerbed, q1phaseblockbed, hapdata['q1']['pysamobj'], alpha, transitionprob, 0)
         if not os.path.exists(q1phaseblockmergedbed):
             q1phaseblockints.saveas(q1phaseblockmergedbed)
         q1_to_r1_phaseblockints = q1phaseblockints.filter(lambda x: x.name=="r1")
@@ -229,7 +231,7 @@ def main() -> None:
         q2phaseblockbed = outputdir + "/" + hapdata['q2']['prefix'] + ".hmmphasedscaffolds.bed"
         q2phaseblockmergedbed = q2phaseblockbed.replace('.bed', '.merged.bed')
         logger.info("Files: " + q1phaseblockmergedbed + ", " + q2phaseblockmergedbed)
-        q2phaseblockints = phasing.find_hapmer_phase_blocks_with_hmm(q2hapmerbed, q2phaseblockbed, hapdata['q2']['pysamobj'].references, alpha, transitionprob, 0)
+        q2phaseblockints = phasing.find_hapmer_phase_blocks_with_hmm(q2hapmerbed, q2phaseblockbed, hapdata['q2']['pysamobj'], alpha, transitionprob, 0)
         if not os.path.exists(q2phaseblockmergedbed):
             q2phaseblockints.saveas(q2phaseblockmergedbed)
         q2_to_r1_phaseblockints = q2phaseblockints.filter(lambda x: x.name=="r1")
@@ -242,7 +244,6 @@ def main() -> None:
     else:
         logger.info("Skipping steps 2 through 4--not needed for haploid assemblies")
    
-    alltrimmedbams = []
     # align test assembly separately to each ref haplotype separately:
     logger.info("Step 5 (of n): Aligning test haplotypes separately to reference haplotypes and gathering trimmed alignments of phased assembly regions to their corresponding reference haplotype region")
     if not os.path.exists(hapdata['r1']['prefix'] + ".merge.sort.bam"):
@@ -261,30 +262,26 @@ def main() -> None:
             logger.info("Finding subaligns in query alignments for haplotype phase blocked regions of the assembly")
             q1_to_r1_trimmedbamfile = q1_to_r1_bamfile.replace(".bam", ".trimmed.bam")
             q1_to_r1_trimmedsortbamfile = q1_to_r1_bamfile.replace(".bam", ".trimmed.sort.bam")
-            if not os.path.exists(q1_to_r1_trimmedbamfile):
+            if not os.path.exists(q1_to_r1_trimmedsortbamfile):
                 alignparse.trim_bamfile_to_intervals(q1_to_r1_bamfile, q1_to_r1_phaseblockints, q1_to_r1_trimmedbamfile, q1_to_r1_bamfile, args, sort=True, index=True)
-            alltrimmedbams.append(q1_to_r1_trimmedbamfile)
             comparisondata['q1_to_r1']['bamfile'] = q1_to_r1_trimmedsortbamfile
 
             q1_to_r2_trimmedbamfile = q1_to_r2_bamfile.replace(".bam", ".trimmed.bam")
             q1_to_r2_trimmedsortbamfile = q1_to_r2_bamfile.replace(".bam", ".trimmed.sort.bam")
-            if not os.path.exists(q1_to_r2_trimmedbamfile):
+            if not os.path.exists(q1_to_r2_trimmedsortbamfile):
                 alignparse.trim_bamfile_to_intervals(q1_to_r2_bamfile, q1_to_r2_phaseblockints, q1_to_r2_trimmedbamfile, q1_to_r2_bamfile, args, sort=True, index=True)
-            alltrimmedbams.append(q1_to_r2_trimmedbamfile)
             comparisondata['q1_to_r2']['bamfile'] = q1_to_r2_trimmedsortbamfile
 
             q2_to_r1_trimmedbamfile = q2_to_r1_bamfile.replace(".bam", ".trimmed.bam")
             q2_to_r1_trimmedsortbamfile = q2_to_r1_bamfile.replace(".bam", ".trimmed.sort.bam")
-            if not os.path.exists(q2_to_r1_trimmedbamfile):
+            if not os.path.exists(q2_to_r1_trimmedsortbamfile):
                 alignparse.trim_bamfile_to_intervals(q2_to_r1_bamfile, q2_to_r1_phaseblockints, q2_to_r1_trimmedbamfile, q2_to_r1_bamfile, args, sort=True, index=True)
-            alltrimmedbams.append(q2_to_r1_trimmedbamfile)
             comparisondata['q2_to_r1']['bamfile'] = q2_to_r1_trimmedsortbamfile
 
             q2_to_r2_trimmedbamfile = q2_to_r2_bamfile.replace(".bam", ".trimmed.bam")
             q2_to_r2_trimmedsortbamfile = q2_to_r2_bamfile.replace(".bam", ".trimmed.sort.bam")
-            if not os.path.exists(q2_to_r2_trimmedbamfile):
+            if not os.path.exists(q2_to_r2_trimmedsortbamfile):
                 alignparse.trim_bamfile_to_intervals(q2_to_r2_bamfile, q2_to_r2_phaseblockints, q2_to_r2_trimmedbamfile, q2_to_r2_bamfile, args, sort=True, index=True)
-            alltrimmedbams.append(q2_to_r2_trimmedbamfile)
             comparisondata['q2_to_r2']['bamfile'] = q2_to_r2_trimmedsortbamfile
     
             # now merge the maternal and paternal trimmed files to a single file with a diploid header, sort, and index:
@@ -295,12 +292,10 @@ def main() -> None:
         else: 
             #logger.info("Skipping step 4 (of 11): Trimmed phased alignments already exist in " + outputfiles["trimmedphasedalignprefix"] + ".merge.sort.bam")
             ##trimmedphasedbam = outputfiles["trimmedphasedalignprefix"] + ".merge.sort.bam"
-            alltrimmedbams.append(q1_to_r1_bamfile)
             comparisondata['q1_to_r1']['bamfile'] = q1_to_r1_bamfile
  
     logger.info("Step 6 (of 11): Filtering alignments to include primary best increasing subset")
 
-    #for trimmedphasedbam in alltrimmedbams:
     for comparison in comparisondata.keys():
         trimmedphasedbam = comparisondata[comparison]['bamfile']
         refobj = comparisondata[comparison]['refobj']
@@ -330,10 +325,14 @@ def main() -> None:
             comparisonoutputfiles[comparison] = {}
         comparisonoutputfiles[comparison]['alignplotprefix'] = outputdir + "/alignmentplots/" + comparison + ".clustered_aligns"
         comparisonoutputfiles[comparison]['structvariantbed'] = outputdir + "/" + comparison + ".svs.bed"
-        bedregiondict = {"allexcludedregions":None}
+        bedregiondict["allexcludedregions"] = None
         benchmark_stats = {}
-        alignparse.assess_overall_structure(rlis_aligndata, refobj, queryobj, outputfiles, bedregiondict, benchmark_stats, args)
-        structvar.write_structural_errors(rlis_aligndata, refobj, queryobj, outputfiles, benchmark_stats, args)
+        if not os.path.exists(comparisonoutputfiles[comparison]['structvariantbed']):
+            alignparse.assess_overall_structure(rlis_aligndata, refobj, queryobj, outputfiles, bedregiondict, benchmark_stats, args)
+            structvar.write_structural_errors(rlis_aligndata, refobj, queryobj, outputfiles, benchmark_stats, args)
+        else:
+            logger.info("Not writing structural variant bed file " + comparisonoutputfiles[comparison]['structvariantbed'] + " because it already exists!")
+
         #stats.write_aligned_cluster_stats(outputfiles, benchmark_stats, args)
 
         # arguments only used in assembly benchmarking:
@@ -344,6 +343,7 @@ def main() -> None:
         outputpat = None
         excludedregions = None
         hetarraybed = None
+
         [refcoveredbed, querycoveredbed, variants, hetsitealleles, alignedscorecounts, snverrorscorecounts, indelerrorscorecounts] = alignparse.write_bedfiles(alignobj, pafaligns, refobj, queryobj, hetsites, querycoveredbedfile, outputpat, refcoveredbedfile, hetarraybed, excludedregions, args)
 
         # create merged unique outputfiles:
@@ -351,7 +351,9 @@ def main() -> None:
         [mergedquerycoveredbed, mergedquerycoveredbedfile] = bedtoolslib.mergebed(querycoveredbedfile)
 
         comparisonoutputfiles[comparison]['refcoveredbed'] = refcoveredbed
+        comparisonoutputfiles[comparison]['refcoveredbedfile'] = refcoveredbedfile
         comparisonoutputfiles[comparison]['querycoveredbed'] = querycoveredbed
+        comparisonoutputfiles[comparison]['querycoveredbedfile'] = querycoveredbedfile
         comparisonoutputfiles[comparison]['mergedrefcoveredbed'] = mergedrefcoveredbed
         comparisonoutputfiles[comparison]['mergedquerycoveredbed'] = mergedquerycoveredbed
 
@@ -364,22 +366,97 @@ def main() -> None:
             #stats.write_het_stats(outputfiles, benchmark_stats, args)
             outputfiles["testerrortypebed"] = outputdir + "/" + comparison + ".querydiscrepancies.bed"
             outputfiles["bencherrortypebed"] = outputdir + "/" + comparison + ".refdiscrepancies.bed"
-            errors.classify_errors(refobj, queryobj, variants, hetsites, outputfiles, compareparams, benchmark_stats, args)
+            if not os.path.exists(outputfiles["testerrortypebed"]) or not os.path.exists(outputfiles["bencherrortypebed"]):
+                errors.classify_errors(refobj, queryobj, variants, hetsites, outputfiles, compareparams, benchmark_stats, args)
+            else:
+                logger.info("Skipping writing discrepancy files--" + outputfiles["testerrortypebed"] + " and " + outputfiles["bencherrortypebed"] + " already exist!")
             comparisonoutputfiles[comparison]['queryerrorbed'] = outputdir + "/" + comparison + ".querydiscrepancies.bed"
             comparisonoutputfiles[comparison]['referrorbed'] = outputdir + "/" + comparison + ".refdiscrepancies.bed"
+            if args.vcf:
+                comparisonoutputfiles[comparison]['referrorvcf'] = outputdir + "/" + comparison + ".refdiscrepancies.vcf"
             #stats.write_qv_stats(benchmark_stats, alignedscorecounts, snverrorscorecounts, indelerrorscorecounts, outputfiles, args)
 
-            ### evaluate mononucleotide runs:
-            #logger.info("Step 10 (of 11): Assessing accuracy of mononucleotide runs")
-            #bedtoolslib.intersectbed(benchparams["mononucruns"], outputfiles["mergedtruthcovered"], outputfile=outputfiles["coveredmononucsfile"], writefirst=True)
-            #mononucswithvariantsbedfile = bedtoolslib.intersectbed(outputfiles["coveredmononucsfile"], outputfiles["bencherrortypebed"], outputfiles["mononucswithvariantsfile"], outerjoin=True, writeboth=True)
-            #mononucstats = errors.gather_mononuc_stats(outputfiles["mononucswithvariantsfile"], outputfiles["mononucstatsfile"])
-            #stats.write_mononuc_stats(mononucstats, outputfiles, benchmark_stats, args)
-    #
     # Report general statistics across all haplotype comparisons:
     #stats.write_comparison_stats_file(hapdata, comparisondata, comparisonoutputfiles)
 
-    ## plot alignment coverage across assembly and genome:
+    # combine BED/VCF files:
+    # Structural variants:
+    combinedsvfile = outputdir + "/" + args.qname + "_vs_" + args.rname + ".svs.sort.bed"
+    if not os.path.exists(combinedsvfile):
+        combinedsvbedstring = ""
+        for comparison in comparisondata.keys():
+            with open(comparisonoutputfiles[comparison]['structvariantbed']) as svfh:
+                combinedsvbedstring = combinedsvbedstring + svfh.read()
+        combinedsvobj = pybedtools.bedtool.BedTool(combinedsvbedstring, from_string=True)
+        combinedsvobj.sort().saveas(combinedsvfile)
+
+    # Combined coverage of reference:
+    combinedcovfile = outputdir + "/" + args.qname + "_vs_" + args.rname + ".refcovered.sort.bed"
+    if not os.path.exists(combinedcovfile):
+        combinedcovbedstring = ""
+        for comparison in comparisondata.keys():
+            with open(comparisonoutputfiles[comparison]['refcoveredbedfile']) as covfh:
+                combinedcovbedstring = combinedcovbedstring + covfh.read()
+        combinedcovobj = pybedtools.BedTool(combinedcovbedstring, from_string=True)
+        combinedcovobj.sort().saveas(combinedcovfile)
+    else:
+        combinedcovobj = pybedtools.BedTool(combinedcovfile)
+
+    # Uncovered regions in the reference:
+    uncoveredfile = outputdir + "/" + args.qname + "_vs_" + args.rname + ".refuncovered.sort.bed"
+    if not os.path.exists(uncoveredfile):
+        hap1prefix = hapdata['r1']['prefix']
+        hap2prefix = hapdata['r2']['prefix']
+        hap1bedobj = bedregiondict[hap1prefix + "genomeregions"]
+        hap2bedobj = bedregiondict[hap2prefix + "genomeregions"]
+        genomebedtool = hap1bedobj.cat(hap2bedobj)
+
+        uncoveredbedtool = bedtoolslib.subtractintervals(genomebedtool, combinedcovobj)
+        uncoveredbedtool.sort().saveas(uncoveredfile)
+    
+    # Combined reference error bed files:
+    combinedreferrorfile = outputdir + "/" + args.qname + "_vs_" + args.rname + ".refdiscrepancies.sort.bed"
+    if not os.path.exists(combinedreferrorfile):
+        combinedreferrorbedstring = ""
+        for comparison in comparisondata.keys():
+            with open(comparisonoutputfiles[comparison]['referrorbed']) as referrorfh:
+                logger.info("Including ref discrepancy file" + comparisonoutputfiles[comparison]['referrorbed'])
+                combinedreferrorbedstring = combinedreferrorbedstring + referrorfh.read()
+        combinedreferrorobj = pybedtools.BedTool(combinedreferrorbedstring, from_string=True)
+        logger.info("Saving to " + combinedreferrorfile)
+        combinedreferrorobj.sort().saveas(combinedreferrorfile)
+    else:
+        combinedreferrorobj = pybedtools.BedTool(combinedreferrorfile)
+    
+    # Combined reference error VCF files:
+    #if args.vcf:
+        #combinedreferrorvcffile = outputdir + "/" + args.qname + "_vs_" + args.rname + ".refdiscrepancies.sort.vcf"
+        #if not os.path.exists(combinedreferrorvcffile):
+            #combinedheader = ""
+            #headervcffile = comparisonoutputfiles['q1_to_r1']['referrorvcf']
+            #headervcf_in = VariantFile(headervcffile)
+            #combinedheader = headervcf_in.header
+            #vcf_out = VariantFile(combinedreferrorvcffile, "w", header=combinedheader)
+            #logger.info("Writing out to " + combinedreferrorvcffile)
+            #for comparison in comparisondata.keys():
+                #vcffile = comparisonoutputfiles[comparison]['referrorvcf']
+                #logger.info("Reading in VCF " + vcffile)
+                #vcf_in = VariantFile(vcffile)
+                #for rec in vcf_in.fetch():
+                    #vcf_out.write(rec)
+            ##vcf_out.close()
+
+            #with open(comparisonoutputfiles[comparison]['referrorvcf']) as referrorfh:
+                #for line in referrorfh:
+                    #if not startwwithpound:
+                        #combinedreferrorvcfstring = combinedreferrorvcfstring + referrorfh.read()
+        #combinedreferrorobj = pybedtools.BedTool(combinedreferrorbedstring, from_string=True)
+        #logger.info("Saving to " + combinedreferrorfile)
+        #combinedreferrorobj.sort().saveas(combinedreferrorfile)
+    #else:
+        #combinedreferrorobj = pybedtools.BedTool(combinedreferrorfile)
+#
+    ## plot alignment referrorerage across assembly and genome:
     if not no_rscript:
         #logger.info("Step 11 (of 11): Creating plots")
         #if not args.structureonly:

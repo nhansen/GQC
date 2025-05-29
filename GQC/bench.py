@@ -206,7 +206,7 @@ def main() -> None:
         logger.info("Using HMM with emission probability " + str(args.alpha) + " and transition probability " + str(args.beta) + " to find phase blocks")
         alpha = args.alpha
         transitionprob = args.beta
-        phaseblockints = phasing.find_hapmer_phase_blocks_with_hmm(markerbed, outputfiles["hmmphaseblockbed"], queryobj.references, alpha, transitionprob, 0)
+        phaseblockints = phasing.find_hapmer_phase_blocks_with_hmm(markerbed, outputfiles["hmmphaseblockbed"], queryobj, alpha, transitionprob, 0)
     phaseblockints.saveas(outputfiles["phaseblockbed"])
     matphaseblockints = phaseblockints.filter(lambda x: x.name=="mat")
     patphaseblockints = phaseblockints.filter(lambda x: x.name=="pat")
