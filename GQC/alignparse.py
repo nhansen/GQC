@@ -22,6 +22,8 @@ def write_bedfiles(bamobj, pafaligns, refobj, queryobj, hetsites, testmatbed, te
 
     refcoveredstring = ""
     querycoveredstring = ""
+    refcoveredbed = None
+    querycoveredbed = None
     if 'variantfile' in args:
         user_variantfile = args.variantfile
     else:
@@ -32,73 +34,79 @@ def write_bedfiles(bamobj, pafaligns, refobj, queryobj, hetsites, testmatbed, te
     snverrorscorecounts = []
     indelerrorscorecounts = []
 
-    if bamobj is not None:
-        for align in bamobj.fetch():
-            if align.is_secondary:
-                continue
-            if align.reference_length >= args.minalignlength:
-                query, querystart, queryend, ref, refstart, refend, strand = retrieve_align_data(align)
-                if strand == "F":
+    if ((testmatbed is not None and not os.path.exists(testmatbed)) or (testpatbed is not None and not os.path.exists(testpatbed)) or (truthbed is not None and not os.path.exists(truthbed))):
+        if bamobj is not None:
+            for align in bamobj.fetch():
+                if align.is_secondary:
+                    continue
+                if align.reference_length >= args.minalignlength:
+                    query, querystart, queryend, ref, refstart, refend, strand = retrieve_align_data(align)
+                    if strand == "F":
+                        queryleft = querystart
+                        queryright = queryend
+                    else:
+                        queryleft = queryend
+                        queryright = querystart
+                    querynamestring = query + "." + str(queryleft) + "." + str(queryright)
+                    refnamestring = ref + "." + str(refstart) + "." + str(refend) + "." + strand
+                    querycoveredstring += query + "\t" + str(querystart - 1) + "\t" + str(queryend) + "\t" + refnamestring + "\n"
+                    refcoveredstring += ref + "\t" + str(refstart - 1) + "\t" + str(refend) + "\t" + querynamestring + "\n"
+                    if user_variantfile is None:
+                        variants.extend(align_variants(align, queryobj, query, querystart, queryend, refobj, ref, refstart, refend, strand, hetsites, hetsitealleles, alignedscorecounts, snverrorscorecounts, indelerrorscorecounts, True))
+            # mark variants that are in excluded regions:
+            logger.debug("Beginning to exclude variants in excluded regions")
+            if excludedbedobj:
+                variants = exclude_variants(variants, excludedbedobj)
+                logger.debug("Finished excluding variants in excluded regions")
+        else:
+            for pafdict in pafaligns:
+                # all start/endpoints are 1-based
+                query = pafdict['query']
+                querystart = pafdict['querystart']
+                queryend = pafdict['queryend']
+                if querystart < queryend:
                     queryleft = querystart
                     queryright = queryend
                 else:
                     queryleft = queryend
                     queryright = querystart
-                querynamestring = query + "." + str(queryleft) + "." + str(queryright)
+                ref = pafdict['target']
+                refstart = pafdict['targetstart']
+                refend = pafdict['targetend']
+                strand = pafdict['strand']
+
+                querynamestring = query + "." + str(querystart) + "." + str(queryend)
                 refnamestring = ref + "." + str(refstart) + "." + str(refend) + "." + strand
-                querycoveredstring += query + "\t" + str(querystart - 1) + "\t" + str(queryend) + "\t" + refnamestring + "\n"
+                querycoveredstring += query + "\t" + str(queryleft - 1) + "\t" + str(queryright) + "\t" + refnamestring + "\n"
                 refcoveredstring += ref + "\t" + str(refstart - 1) + "\t" + str(refend) + "\t" + querynamestring + "\n"
-                if user_variantfile is None:
-                    variants.extend(align_variants(align, queryobj, query, querystart, queryend, refobj, ref, refstart, refend, strand, hetsites, hetsitealleles, alignedscorecounts, snverrorscorecounts, indelerrorscorecounts, True))
-        # mark variants that are in excluded regions:
-        logger.debug("Beginning to exclude variants in excluded regions")
-        if excludedbedobj:
-            variants = exclude_variants(variants, excludedbedobj)
-            logger.debug("Finished excluding variants in excluded regions")
+
+        refcoveredbed = pybedtools.BedTool(refcoveredstring, from_string = True)
+        querycoveredbed = pybedtools.BedTool(querycoveredstring, from_string = True)
     else:
-        for pafdict in pafaligns:
-            # all start/endpoints are 1-based
-            query = pafdict['query']
-            querystart = pafdict['querystart']
-            queryend = pafdict['queryend']
-            if querystart < queryend:
-                queryleft = querystart
-                queryright = queryend
-            else:
-                queryleft = queryend
-                queryright = querystart
-            ref = pafdict['target']
-            refstart = pafdict['targetstart']
-            refend = pafdict['targetend']
-            strand = pafdict['strand']
-
-            querynamestring = query + "." + str(querystart) + "." + str(queryend)
-            refnamestring = ref + "." + str(refstart) + "." + str(refend) + "." + strand
-            querycoveredstring += query + "\t" + str(queryleft - 1) + "\t" + str(queryright) + "\t" + refnamestring + "\n"
-            refcoveredstring += ref + "\t" + str(refstart - 1) + "\t" + str(refend) + "\t" + querynamestring + "\n"
-
-    refcoveredbed = pybedtools.BedTool(refcoveredstring, from_string = True)
-    querycoveredbed = pybedtools.BedTool(querycoveredstring, from_string = True)
+        logger.info("Skipping alignment parsing because alignment coverage bedfiles already exist--delete them to reprocess")
+        refcoveredbed = pybedtools.BedTool(truthbed)
 
     # if testpatbed is None, a single bed file should be written to the file passed as testmatbed:
-    phap1 = re.compile(r'.*MAT.*')
-    phap2 = re.compile(r'.*PAT.*')
-    with open(testmatbed, "w") as tmb:
-        for testint in sorted(querycoveredbed, key=lambda h: (h.chrom, h.start, h.stop)):
-            if testpatbed is None or phap1.match(testint.name):
-                tmb.write(testint.chrom + "\t" + str(testint.start) + "\t" + str(testint.end) + "\t" + testint.name + "\n")
-
-    if testpatbed is not None:
-        with open(testpatbed, "w") as tpb:
+    if not os.path.exists(testmatbed) or (testpatbed is not None and not os.path.exists(testpatbed)):
+        phap1 = re.compile(r'.*MAT.*')
+        phap2 = re.compile(r'.*PAT.*')
+        with open(testmatbed, "w") as tmb:
             for testint in sorted(querycoveredbed, key=lambda h: (h.chrom, h.start, h.stop)):
-                if phap2.match(testint.name):
-                    tpb.write(testint.chrom + "\t" + str(testint.start) + "\t" + str(testint.end) + "\t" + testint.name + "\n")
+                if testpatbed is None or phap1.match(testint.name):
+                    tmb.write(testint.chrom + "\t" + str(testint.start) + "\t" + str(testint.end) + "\t" + testint.name + "\n")
 
-    with open(truthbed, "w") as rb:
-        for truthint in sorted(refcoveredbed, key=lambda h: (h.chrom, h.start, h.stop)):
-            rb.write(truthint.chrom + "\t" + str(truthint.start) + "\t" + str(truthint.end) + "\t" + truthint.name + "\n")
+        if testpatbed is not None:
+            with open(testpatbed, "w") as tpb:
+                for testint in sorted(querycoveredbed, key=lambda h: (h.chrom, h.start, h.stop)):
+                    if phap2.match(testint.name):
+                        tpb.write(testint.chrom + "\t" + str(testint.start) + "\t" + str(testint.end) + "\t" + testint.name + "\n")
 
-    if hetsites:
+    if not os.path.exists(truthbed):
+        with open(truthbed, "w") as rb:
+            for truthint in sorted(refcoveredbed, key=lambda h: (h.chrom, h.start, h.stop)):
+                rb.write(truthint.chrom + "\t" + str(truthint.start) + "\t" + str(truthint.end) + "\t" + truthint.name + "\n")
+
+    if hetsites and hetallelebed is not None and not os.path.exists(hetallelebed):
         phasing.write_hetallele_bed(hetsitealleles, hetallelebed)
 
     if user_variantfile is not None:
@@ -421,8 +429,16 @@ def align_variants(align, queryobj, query:str, querystart:int, queryend:int, ref
             elif queryallele == altallele:
                 alleletype = 'ALT'
 
-            querystartcoord = querystart + querystartoffset
-            queryendcoord = querystart + queryendoffset - 2
+            if strand == "F":
+                querystartcoord = querystart + querystartoffset
+                queryendcoord = querystart + queryendoffset - 2
+            else:
+                querystartcoord = queryend - queryendoffset
+                queryendcoord = queryend - querystartoffset
+
+            # adjust end coordinate for cases where there's a deletion in the test assembly at the position of the het:
+            if queryendcoord < querystartcoord:
+                queryendcoord = querystartcoord
 
             hetsitealleles[hetname] = {'name':hetname, 'ref':ref, 'refstart':hetstart, 'refend':hetend, 'allele':queryallele, 'query':query, 'start':querystartcoord, 'end':queryendcoord, 'chrom':query}
 
