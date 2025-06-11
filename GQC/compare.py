@@ -83,6 +83,7 @@ def init_argparse() -> argparse.ArgumentParser:
     parser.add_argument('--maxclusterdistance', type=int, required=False, default=10000, help='maximum distance within a cluster of alignments')
     parser.add_argument('--vcf', action='store_true', required=False, default=False, help='write differences between assemblies in VCF (as well as BED) format')
     parser.add_argument('--haploid', action='store_true', required=False, help='run with just haploid assemblies q1 and r1')
+    parser.add_argument('--hap2dip', action='store_true', required=False, help='compare a haploid assembly q1 to ref haplotypes r1 and r2')
     parser.add_argument('--debug', action='store_true', required=False, help='print verbose output to log file for debugging purposes')
 
     return parser
@@ -91,8 +92,11 @@ def parse_arguments(args):
     parser = init_argparse()
     args = parser.parse_args(args)
 
-    if not args.haploid and (not args.q2fasta or not args.r2fasta):
-        logger.critical("Unless --haploid option is used, options q2fasta and r2fasta must be specified")
+    if not args.haploid and (not args.r1fasta or not args.r2fasta):
+        logger.critical("Unless --haploid option is used, options r1fasta and r2fasta must be specified")
+        exit(1)
+    if not args.haploid and not args.hap2dip and not args.q2fasta:
+        logger.critical("Unless --haploid or --hap2dip option is used, option q2fasta must be specified")
         exit(1)
 
     return args
@@ -144,34 +148,41 @@ def main() -> None:
     # pysam objects for the assembly haplotype fasta files:
     q1hapfasta = Path(args.q1fasta)
     r1hapfasta = Path(args.r1fasta)
-    if not args.haploid:
-        q2hapfasta = Path(args.q2fasta)
-        r2hapfasta = Path(args.r2fasta)
-    
-    if (not q1hapfasta.is_file() or not r1hapfasta.is_file()) or (not args.haploid and (not q2hapfasta.is_file() or not r2hapfasta.is_file())):
-        logger.critical("FASTA files for all assembly haplotypes must exist and be readable")
+    if (not q1hapfasta.is_file() or not r1hapfasta.is_file()):
+        logger.critical("FASTA files specified with --q1fasta and --r1fasta must exist and be readable")
         exit(1)
+
+    if not args.haploid:
+        r2hapfasta = Path(args.r2fasta)
+        if not r2hapfasta.is_file():
+            logger.critical("FASTA file specified with --r2fasta must exist and be readable")
+            exit(1)
+   
+    if not args.haploid and not args.hap2dip:
+        q2hapfasta = Path(args.q2fasta)
+        if not q2hapfasta.is_file():
+            logger.critical("FASTA files specified with --q2fasta must exist and be readable")
+            exit(1)
     
     hapq1obj = pysam.FastaFile(args.q1fasta)
     hapr1obj = pysam.FastaFile(args.r1fasta)
-    if not args.haploid:
-        hapq2obj = pysam.FastaFile(args.q2fasta)
-        hapr2obj = pysam.FastaFile(args.r2fasta)
-    
     hapdata = {'q1':{'pysamobj':hapq1obj, 'fasta':args.q1fasta, 'prefix':args.qname},
                'r1':{'pysamobj':hapr1obj, 'fasta':args.r1fasta, 'prefix':args.rname}}
-
     if not args.haploid:
-        hapdata['q1']['prefix'] = hapdata['q1']['prefix'] + "_hap1"
+        hapr2obj = pysam.FastaFile(args.r2fasta)
         hapdata['r1']['prefix'] = hapdata['r1']['prefix'] + "_hap1"
-        hapdata['q2'] = {'pysamobj':hapq2obj, 'fasta':args.q2fasta, 'prefix':args.qname + "_hap2"}
         hapdata['r2'] = {'pysamobj':hapr2obj, 'fasta':args.r2fasta, 'prefix':args.rname + "_hap2"}
+        if not args.hap2dip:
+            hapq2obj = pysam.FastaFile(args.q2fasta)
+            hapdata['q1']['prefix'] = hapdata['q1']['prefix'] + "_hap1"
+            hapdata['q2'] = {'pysamobj':hapq2obj, 'fasta':args.q2fasta, 'prefix':args.qname + "_hap2"}
 
     comparisondata = {'q1_to_r1':{'refobj':hapr1obj, 'queryobj':hapq1obj, 'refprefix':hapdata['r1']['prefix'], 'queryprefix':hapdata['q1']['prefix']}}
     if not args.haploid:
         comparisondata['q1_to_r2'] = {'refobj':hapr2obj, 'queryobj':hapq1obj, 'refprefix':hapdata['r2']['prefix'], 'queryprefix':hapdata['q1']['prefix']}
-        comparisondata['q2_to_r1'] = {'refobj':hapr1obj, 'queryobj':hapq2obj, 'refprefix':hapdata['r1']['prefix'], 'queryprefix':hapdata['q2']['prefix']}
-        comparisondata['q2_to_r2'] = {'refobj':hapr2obj, 'queryobj':hapq2obj, 'refprefix':hapdata['r2']['prefix'], 'queryprefix':hapdata['q2']['prefix']}
+        if not args.hap2dip:
+            comparisondata['q2_to_r1'] = {'refobj':hapr1obj, 'queryobj':hapq2obj, 'refprefix':hapdata['r1']['prefix'], 'queryprefix':hapdata['q2']['prefix']}
+            comparisondata['q2_to_r2'] = {'refobj':hapr2obj, 'queryobj':hapq2obj, 'refprefix':hapdata['r2']['prefix'], 'queryprefix':hapdata['q2']['prefix']}
 
     comparisonoutputfiles = {}
     
@@ -199,9 +210,7 @@ def main() -> None:
             for haplotype in hapdata.keys():
                 hapdict = hapdata[haplotype]
                 kmers.create_kmer_database(hapdict['fasta'], outputdir, hapdict['prefix'])
-        
-            kmers.find_anotb_kmers(hapdata['q1']['prefix'], hapdata['q2']['prefix'], outputdir, 'q1_not_q2') 
-            kmers.find_anotb_kmers(hapdata['q2']['prefix'], hapdata['q1']['prefix'], outputdir, 'q2_not_q1') 
+       
             kmers.find_anotb_kmers(hapdata['r1']['prefix'], hapdata['r2']['prefix'], outputdir, 'r1_not_r2') 
             kmers.find_anotb_kmers(hapdata['r2']['prefix'], hapdata['r1']['prefix'], outputdir, 'r2_not_r1') 
 
@@ -212,8 +221,8 @@ def main() -> None:
        
         logger.info("Step 3 (of n): Writing bed files of kmer locations of " + args.rname + " haplotype markers in the " + args.qname + " assembly")
         q1hapmerbed = kmers.map_kmer_markers_onto_fasta(hapdata['q1']['fasta'], [outputdir + "/" + 'r1_not_r2.kmers.k40', outputdir + "/" + 'r2_not_r1.kmers.k40'], outputdir)
-        q2hapmerbed = kmers.map_kmer_markers_onto_fasta(hapdata['q2']['fasta'], [outputdir + "/" + 'r1_not_r2.kmers.k40', outputdir + "/" + 'r2_not_r1.kmers.k40'], outputdir)
-        logger.info("Files: " + q1hapmerbed + ", " + q2hapmerbed)
+        if not args.hap2dip:
+            q2hapmerbed = kmers.map_kmer_markers_onto_fasta(hapdata['q2']['fasta'], [outputdir + "/" + 'r1_not_r2.kmers.k40', outputdir + "/" + 'r2_not_r1.kmers.k40'], outputdir)
     
         # use HMM algorithm to find matching phase blocks between assemblies
         logger.info("Step 4 (of n): Using HMM with emission probability " + str(args.alpha) + " and transition probability " + str(args.beta) + " to find matching phase blocks between assemblies")
@@ -228,21 +237,21 @@ def main() -> None:
         q1_to_r1_phaseblockints = q1phaseblockints.filter(lambda x: x.name=="r1")
         q1_to_r2_phaseblockints = q1phaseblockints.filter(lambda x: x.name=="r2")
 
-        q2phaseblockbed = outputdir + "/" + hapdata['q2']['prefix'] + ".hmmphasedscaffolds.bed"
-        q2phaseblockmergedbed = q2phaseblockbed.replace('.bed', '.merged.bed')
-        logger.info("Files: " + q1phaseblockmergedbed + ", " + q2phaseblockmergedbed)
-        q2phaseblockints = phasing.find_hapmer_phase_blocks_with_hmm(q2hapmerbed, q2phaseblockbed, hapdata['q2']['pysamobj'], alpha, transitionprob, 0)
-        if not os.path.exists(q2phaseblockmergedbed):
-            q2phaseblockints.saveas(q2phaseblockmergedbed)
-        q2_to_r1_phaseblockints = q2phaseblockints.filter(lambda x: x.name=="r1")
-        q2_to_r2_phaseblockints = q2phaseblockints.filter(lambda x: x.name=="r2")
+        if not args.hap2dip:
+            q2phaseblockbed = outputdir + "/" + hapdata['q2']['prefix'] + ".hmmphasedscaffolds.bed"
+            q2phaseblockmergedbed = q2phaseblockbed.replace('.bed', '.merged.bed')
+            q2phaseblockints = phasing.find_hapmer_phase_blocks_with_hmm(q2hapmerbed, q2phaseblockbed, hapdata['q2']['pysamobj'], alpha, transitionprob, 0)
+            if not os.path.exists(q2phaseblockmergedbed):
+                q2phaseblockints.saveas(q2phaseblockmergedbed)
+            q2_to_r1_phaseblockints = q2phaseblockints.filter(lambda x: x.name=="r1")
+            q2_to_r2_phaseblockints = q2phaseblockints.filter(lambda x: x.name=="r2")
 
         ##stats.write_phase_block_stats(phaseblockints, outputfiles, benchmark_stats, args)
         #q1_to_r1_numintervals = len(q1_to_r1_phaseblockints)
         #print("End of assigned " + str(q1_to_r1_numintervals))
 
     else:
-        logger.info("Skipping steps 2 through 4--not needed for haploid assemblies")
+        logger.info("Skipping steps 2 through 4--not needed for comparing haploid assemblies")
    
     # align test assembly separately to each ref haplotype separately:
     logger.info("Step 5 (of n): Aligning test haplotypes separately to reference haplotypes and gathering trimmed alignments of phased assembly regions to their corresponding reference haplotype region")
@@ -253,10 +262,11 @@ def main() -> None:
         if not args.haploid:
             q1_to_r2_prefix = hapdata['q1']['prefix'] + "_to_" + hapdata['r2']['prefix'] + "." + args.aligner
             q1_to_r2_bamfile = align.align_haplotype_to_haplotype(hapdata['q1']['fasta'], hapdata['r2']['fasta'], q1_to_r2_prefix, compareparams, args)
-            q2_to_r1_prefix = hapdata['q2']['prefix'] + "_to_" + hapdata['r1']['prefix'] + "." + args.aligner
-            q2_to_r1_bamfile = align.align_haplotype_to_haplotype(hapdata['q2']['fasta'], hapdata['r1']['fasta'], q2_to_r1_prefix, compareparams, args)
-            q2_to_r2_prefix = hapdata['q2']['prefix'] + "_to_" + hapdata['r2']['prefix'] + "." + args.aligner
-            q2_to_r2_bamfile = align.align_haplotype_to_haplotype(hapdata['q2']['fasta'], hapdata['r2']['fasta'], q2_to_r2_prefix, compareparams, args)
+            if not args.hap2dip:
+                q2_to_r1_prefix = hapdata['q2']['prefix'] + "_to_" + hapdata['r1']['prefix'] + "." + args.aligner
+                q2_to_r1_bamfile = align.align_haplotype_to_haplotype(hapdata['q2']['fasta'], hapdata['r1']['fasta'], q2_to_r1_prefix, compareparams, args)
+                q2_to_r2_prefix = hapdata['q2']['prefix'] + "_to_" + hapdata['r2']['prefix'] + "." + args.aligner
+                q2_to_r2_bamfile = align.align_haplotype_to_haplotype(hapdata['q2']['fasta'], hapdata['r2']['fasta'], q2_to_r2_prefix, compareparams, args)
     
             # read in alignments from BAM format, filtering out secondaries and finding the optimal alignment on the correct haplotype for each phase block in the assembly
             logger.info("Finding subaligns in query alignments for haplotype phase blocked regions of the assembly")
@@ -272,26 +282,20 @@ def main() -> None:
                 alignparse.trim_bamfile_to_intervals(q1_to_r2_bamfile, q1_to_r2_phaseblockints, q1_to_r2_trimmedbamfile, q1_to_r2_bamfile, args, sort=True, index=True)
             comparisondata['q1_to_r2']['bamfile'] = q1_to_r2_trimmedsortbamfile
 
-            q2_to_r1_trimmedbamfile = q2_to_r1_bamfile.replace(".bam", ".trimmed.bam")
-            q2_to_r1_trimmedsortbamfile = q2_to_r1_bamfile.replace(".bam", ".trimmed.sort.bam")
-            if not os.path.exists(q2_to_r1_trimmedsortbamfile):
-                alignparse.trim_bamfile_to_intervals(q2_to_r1_bamfile, q2_to_r1_phaseblockints, q2_to_r1_trimmedbamfile, q2_to_r1_bamfile, args, sort=True, index=True)
-            comparisondata['q2_to_r1']['bamfile'] = q2_to_r1_trimmedsortbamfile
-
-            q2_to_r2_trimmedbamfile = q2_to_r2_bamfile.replace(".bam", ".trimmed.bam")
-            q2_to_r2_trimmedsortbamfile = q2_to_r2_bamfile.replace(".bam", ".trimmed.sort.bam")
-            if not os.path.exists(q2_to_r2_trimmedsortbamfile):
-                alignparse.trim_bamfile_to_intervals(q2_to_r2_bamfile, q2_to_r2_phaseblockints, q2_to_r2_trimmedbamfile, q2_to_r2_bamfile, args, sort=True, index=True)
-            comparisondata['q2_to_r2']['bamfile'] = q2_to_r2_trimmedsortbamfile
+            if not args.hap2dip:
+                q2_to_r1_trimmedbamfile = q2_to_r1_bamfile.replace(".bam", ".trimmed.bam")
+                q2_to_r1_trimmedsortbamfile = q2_to_r1_bamfile.replace(".bam", ".trimmed.sort.bam")
+                if not os.path.exists(q2_to_r1_trimmedsortbamfile):
+                    alignparse.trim_bamfile_to_intervals(q2_to_r1_bamfile, q2_to_r1_phaseblockints, q2_to_r1_trimmedbamfile, q2_to_r1_bamfile, args, sort=True, index=True)
+                comparisondata['q2_to_r1']['bamfile'] = q2_to_r1_trimmedsortbamfile
     
-            # now merge the maternal and paternal trimmed files to a single file with a diploid header, sort, and index:
-            #alignparse.merge_trimmed_bamfiles(q1_to_r1_trimmedbamfile, q2_to_r1_trimmedbamfile, benchdiploidheaderfile, outputfiles)
-            #alignparse.merge_trimmed_bamfiles(q1_to_r2_trimmedbamfile, q2_to_r2_trimmedbamfile, benchdiploidheaderfile, outputfiles)
-            #alignparse.merge_trimmed_bamfiles(mattrimmedbamfile, pattrimmedbamile, benchdiploidheaderfile, outputfiles)
-            #alignparse.merge_trimmed_bamfiles(mattrimmedbamfile, pattrimmedbamfile, benchdiploidheaderfile, outputfiles)
+                q2_to_r2_trimmedbamfile = q2_to_r2_bamfile.replace(".bam", ".trimmed.bam")
+                q2_to_r2_trimmedsortbamfile = q2_to_r2_bamfile.replace(".bam", ".trimmed.sort.bam")
+                if not os.path.exists(q2_to_r2_trimmedsortbamfile):
+                    alignparse.trim_bamfile_to_intervals(q2_to_r2_bamfile, q2_to_r2_phaseblockints, q2_to_r2_trimmedbamfile, q2_to_r2_bamfile, args, sort=True, index=True)
+                comparisondata['q2_to_r2']['bamfile'] = q2_to_r2_trimmedsortbamfile
+    
         else: 
-            #logger.info("Skipping step 4 (of 11): Trimmed phased alignments already exist in " + outputfiles["trimmedphasedalignprefix"] + ".merge.sort.bam")
-            ##trimmedphasedbam = outputfiles["trimmedphasedalignprefix"] + ".merge.sort.bam"
             comparisondata['q1_to_r1']['bamfile'] = q1_to_r1_bamfile
  
     logger.info("Step 6 (of 11): Filtering alignments to include primary best increasing subset")
@@ -396,6 +400,18 @@ def main() -> None:
         combinedcovbedstring = ""
         for comparison in comparisondata.keys():
             with open(comparisonoutputfiles[comparison]['refcoveredbedfile']) as covfh:
+                combinedcovbedstring = combinedcovbedstring + covfh.read()
+        combinedcovobj = pybedtools.BedTool(combinedcovbedstring, from_string=True)
+        combinedcovobj.sort().saveas(combinedcovfile)
+    else:
+        combinedcovobj = pybedtools.BedTool(combinedcovfile)
+
+    # Combined coverage of query:
+    combinedcovfile = outputdir + "/" + args.rname + "_vs_" + args.qname + ".querycovered.sort.bed"
+    if not os.path.exists(combinedcovfile):
+        combinedcovbedstring = ""
+        for comparison in comparisondata.keys():
+            with open(comparisonoutputfiles[comparison]['querycoveredbedfile']) as covfh:
                 combinedcovbedstring = combinedcovbedstring + covfh.read()
         combinedcovobj = pybedtools.BedTool(combinedcovbedstring, from_string=True)
         combinedcovobj.sort().saveas(combinedcovfile)
