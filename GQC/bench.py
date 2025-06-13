@@ -311,6 +311,15 @@ def main() -> None:
                 if len(alignedscorecounts) > 0:
                     plots.plot_qv_score_concordance(args.assembly, args.benchmark, outputdir, benchparams["resourcedir"])
         plots.plot_svcluster_align_plots(args.assembly, args.benchmark, outputfiles["alignplotdir"], refobj, mode='bench')
+        plots.run_ngax_plot(args.assembly, args.benchmark, outputdir, benchparams["nonnseq"], benchparams["resourcedir"])
+        plots.plot_mononuc_accuracy(args.assembly, args.benchmark, outputdir, benchparams["resourcedir"])
+        plots.plot_assembly_error_stats(args.assembly, args.benchmark, outputdir)
+        plots.plot_assembly_discrepancy_counts(args.assembly, args.benchmark,  outputdir)
+        if "assemblyqv" in benchmark_stats.keys():
+            assemblyqv = benchmark_stats["assemblyqv"]
+        else:
+            assemblyqv = "NA"
+        plots.plot_assembly_summary_stats(args.assembly, args.benchmark,  outputdir, benchparams["nonnseq"], benchparams["resourcedir"], assemblyqv=assemblyqv)
 
 
 if __name__ == "__main__":

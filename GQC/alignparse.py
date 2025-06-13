@@ -628,7 +628,11 @@ def create_subalignobjects(align, subaligninfo:list, hardcliplongest:bool)->list
                 cigarlist = cigartuples
             if rightsoftclip > 0:
                 cigarlist.append([4, rightsoftclip])
-            newalign.cigartuples = cigarlist
+            try:
+                newalign.cigartuples = cigarlist
+            except OverflowError:
+                logger.critical("Overflow Error while retrieving supplementary CIGAR string. Read name: {0}, Position: {1}, CIGAR: {2}".format(align.query_name, str(aligninfo['alignedquerystart']), str(aligninfo['alignedrefstart'])))
+                continue
             #for cigar in cigarlist:
                 #logger.debug("CIGAR\t" + str(cigar[0]) + ":" + str(cigar[1]))
             queryconsumedbases = count_consumed_query(cigarlist)
@@ -644,15 +648,16 @@ def create_subalignobjects(align, subaligninfo:list, hardcliplongest:bool)->list
                 cigarlist = cigartuples
             if righthardclip > 0:
                 cigarlist.append([5, righthardclip])
-            newalign.cigartuples = cigarlist
+            try:
+                newalign.cigartuples = cigarlist
+            except OverflowError:
+                logger.critical("Overflow Error while retrieving supplementary CIGAR string. Read name: {0}, Position: {1}, CIGAR: {2}".format(align.query_name, str(aligninfo['alignedquerystart']), str(aligninfo['alignedrefstart'])))
+                continue
             query_seqstart = aligninfo['alignedquerystart'] + align.query_alignment_start
             query_seqend = aligninfo['alignedqueryend'] + align.query_alignment_start
             newalign.query_sequence = querysamseq[query_seqstart:query_seqend]
             queryseqlength = query_seqend - query_seqstart
             #logger.debug("Query sequence has length " + str(lefthardclip) + " hardclip and right hardclip " + str(righthardclip) + " to align of length " +str(aligninfo['subalignlength']))
-            newalign.cigartuples = cigarlist
-            #for cigar in cigarlist:
-                #logger.debug("CIGAR\t" + str(cigar[0]) + ":" + str(cigar[1]))
             queryconsumedbases = count_consumed_query(cigarlist)
             logger.debug("Query seq length is " + str(queryseqlength) + " and cigar consumes " + str(queryconsumedbases))
 

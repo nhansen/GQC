@@ -7,6 +7,7 @@ hetsitevariants: v1.1.hetsites.bed
 excluderegions: v1.1.excluded_regions.bed
 nstretchregions: v1.1.ncoords.bed
 genomeregions: v1.1.genome.bed
+nonnseq: v1.1.non_n_seq.bed
 matmarkerdb: v1.1.matnotpat.k40.hap
 patmarkerdb: v1.1.patnotmat.k40.hap
 matbenchmark: v1.1.mat.fasta.gz

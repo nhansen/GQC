@@ -126,26 +126,28 @@ plotaligns <- function(aligns, index=1, suppressaxis=FALSE, suppresstitle=FALSE,
       text(vertline+2, 1, labels= vertlinelabel)
     }
   }
-  if (length(refgaps$contig)==1 && (is.na(refgaps))) {
-    refstarts <- NA
-    refends <- NA
-  }
-  else {
+  if (length(refgaps) > 1 || !(is.na(refgaps))) {
     refstarts <- refgaps[refgaps$contig==chrom, "start"]/axisunitbases
     refends <- refgaps[refgaps$contig==chrom, "end"]/axisunitbases
     if (length(refstarts) > 0) {
       rect(refstarts, querymin, refends, querymax, col="gray")
     }
   }
-  if (length(querygaps$contig)==1 && (is.na(querygaps))) {
-    querystarts <- NA
-    queryends <- NA
-  } else {
+  else {
+    refstarts <- NA
+    refends <- NA
+  }
+
+  if (length(querygaps)>1 || !(is.na(querygaps))) {
     querystarts <- querygaps[querygaps$contig==chrom, "start"]/axisunitbases
     queryends <- querygaps[querygaps$contig==chrom, "end"]/axisunitbases
     if (length(querystarts) > 0) {
       rect(chrommin, querystarts, chrommax, queryends, col="gray")
     }
+  }
+  else {
+    querystarts <- NA
+    queryends <- NA
   }
 
   legend("bottomright", orderedclusters, pch=15, col=legendclustercolors)

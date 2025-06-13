@@ -26,8 +26,9 @@ def plot_testassembly_align_coverage(assemblyname:str, benchname:str, outputdir:
 
 def plot_mononuc_accuracy(assemblyname:str, benchname:str, outputdir:str, resourcedir:str):
     rfile_res = importlib.resources.files("GQC").joinpath('MononucAccuracy.R')
-    with importlib.resources.as_file(rfile_res) as rfile:
-        plotcommand = "Rscript " + str(rfile) + " " + assemblyname + " " + benchname + " " + outputdir + " " + resourcedir
+    rlib_res = importlib.resources.files("GQC").joinpath('AssemblyFunctions.R')
+    with importlib.resources.as_file(rfile_res) as rfile, importlib.resources.as_file(rlib_res) as rlib:
+        plotcommand = "cat " + str(rlib) + " " + str(rfile) + " | " + "Rscript - " + assemblyname + " " + benchname + " " + outputdir + " " + resourcedir
         logger.info(plotcommand)
         returnvalue = os.system(plotcommand)
     return returnvalue
@@ -86,8 +87,9 @@ def plot_sv_indel_profile_plot(assemblyname:str, benchname:str, outputdir:str, r
 
 def plot_assembly_error_stats(assemblyname:str, genomename:str, outputdir:str):
     rfile_res = importlib.resources.files("GQC").joinpath('IndelLengthPlot.R')
-    with importlib.resources.as_file(rfile_res) as rfile:
-        plotcommand = "Rscript " + str(rfile) + " " + assemblyname + " " + genomename + " " + outputdir
+    rlib_res = importlib.resources.files("GQC").joinpath('AssemblyFunctions.R')
+    with importlib.resources.as_file(rfile_res) as rfile, importlib.resources.as_file(rlib_res) as rlib:
+        plotcommand = "cat " + str(rlib) + " " + str(rfile) + " | " + "Rscript - " + assemblyname + " " + genomename + " " + outputdir
         logger.info(plotcommand)
         returnvalue = os.system(plotcommand)
     return returnvalue
@@ -112,6 +114,34 @@ def plot_read_qv_score_concordance(readsetname:str, benchname:str, outputdir:str
     rfile_res = importlib.resources.files("GQC").joinpath('PlotAssemblyQualValueAccuracy.R')
     with importlib.resources.as_file(rfile_res) as rfile:
         plotcommand = "Rscript " + str(rfile) + " " + readsetname + " " + benchname + " " + outputdir + " " + resourcedir
+        logger.info(plotcommand)
+        returnvalue = os.system(plotcommand)
+    return returnvalue
+
+def run_ngax_plot(assemblyname:str, benchname:str, outputdir:str, nonnbenchbed:str, resourcedir:str):
+    rfile_res = importlib.resources.files("GQC").joinpath('NGAxPlot.R')
+    rlib_res = importlib.resources.files("GQC").joinpath('AssemblyFunctions.R')
+    with importlib.resources.as_file(rfile_res) as rfile, importlib.resources.as_file(rlib_res) as rlib:
+        plottitle = "Continuity Curves for " + assemblyname
+        plotcommand = "cat " + str(rlib) + " " + str(rfile) + " | " + "Rscript - " + assemblyname + " " + benchname + " " + outputdir + " " + nonnbenchbed + " " + plottitle
+        logger.info(plotcommand)
+        returnvalue = os.system(plotcommand)
+    return returnvalue
+
+def plot_assembly_discrepancy_counts(assemblyname:str, genomename:str, outputdir:str):
+    rfile_res = importlib.resources.files("GQC").joinpath('DiscrepancyCountPlot.R')
+    rlib_res = importlib.resources.files("GQC").joinpath('AssemblyFunctions.R')
+    with importlib.resources.as_file(rfile_res) as rfile, importlib.resources.as_file(rlib_res) as rlib:
+        plotcommand = "cat " + str(rlib) + " " + str(rfile) + " | " + "Rscript - " + assemblyname + " " + genomename + " " + outputdir
+        logger.info(plotcommand)
+        returnvalue = os.system(plotcommand)
+    return returnvalue
+
+def plot_assembly_summary_stats(assemblyname:str, benchname:str, outputdir:str, nonnbenchbed:str, resourcedir:str, assemblyqv:int):
+    rfile_res = importlib.resources.files("GQC").joinpath('AssemblySummaryPlots.R')
+    rlib_res = importlib.resources.files("GQC").joinpath('AssemblyFunctions.R')
+    with importlib.resources.as_file(rfile_res) as rfile, importlib.resources.as_file(rlib_res) as rlib:
+        plotcommand = "cat " + str(rlib) + " " + str(rfile) + " | " + "Rscript - " + assemblyname + " " + benchname + " " + outputdir + " " + nonnbenchbed + " " + str(assemblyqv)
         logger.info(plotcommand)
         returnvalue = os.system(plotcommand)
     return returnvalue

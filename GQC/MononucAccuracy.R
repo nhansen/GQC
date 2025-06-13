@@ -27,9 +27,8 @@ accrate <- 1.0 - consensuserrorcounts$counts/noncomplexcovcounts$counts
 
 plotname <- paste(c(outputdir, "/", genomename, ".mononuc_accuracy.", benchname, ".pdf"), sep="", collapse="")
 pdf(plotname, 7.08661, 6.69291)
-
-plot(consensuserrorcounts$mids, accrate, xlim=c(10,40), pch=16, xlab=c("Mononucleotide run length"), ylab=c("Accuracy"), main=paste(c("Accuracy of mononucleotide runs in ", genomename), sep="", collapse=""))
-text(20, 0.5, labels= paste(c("Overall error rate: ", mononucerrorperc, "%"), sep="", collapse=""))
+assembly_mononucqv_plot(c(mononucsitefile), assemblylabels=c(genomename), plottitle="", plotlines=TRUE, linetype=1, errorbars=TRUE, overallerrorrate=mononucerrorperc)
+#text(20, 20, labels= paste(c("Overall error rate: ", mononucerrorperc, "%"), sep="", collapse=""))
 
 dev.off()
 

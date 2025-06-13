@@ -28,6 +28,8 @@ def write_general_assembly_stats(refobj, queryobj, contigregions, gapregions, ou
 
     bmstats['hap1totalbases'] = hap1totalbases # this is the total number of bases in the MATERNAL benchmark chroms
     bmstats['hap2totalbases'] = hap2totalbases # this is the total number of bases in the PATERNAL benchmark chroms
+    diploidtotalbases = hap1totalbases + hap2totalbases # this is the total number of bases in the entire diploid benchmark
+    bmstats['diploidtotalbases'] = diploidtotalbases
     avghaptotalbases = (hap1totalbases + hap2totalbases)/2.0
     bmstats['totalbases'] = hap1totalbases + hap2totalbases
 
@@ -66,7 +68,7 @@ def write_general_assembly_stats(refobj, queryobj, contigregions, gapregions, ou
                     scaffold_hap1_aung = scaffold_hap1_aung + scafflength*scafflength/hap1totalbases
                 if hap2totalbases:
                     scaffold_hap2_aung = scaffold_hap2_aung + scafflength*scafflength/hap2totalbases
-                perctotallength = int(1000.0*cumscaffbases/avghaptotalbases + 0.5)/10.0
+                perctotallength = int(1000.0*cumscaffbases/diploidtotalbases + 0.5)/10.0
                 # At some point, may want to pull scaffold name into last field for use in annotating plots
                 sfh.write(str(perctotallength) + "\t" + str(scafflength) + "\t" + str(cumscaffbases) + "\tNA\n")
 
@@ -114,7 +116,7 @@ def write_general_assembly_stats(refobj, queryobj, contigregions, gapregions, ou
                     contig_hap1_aung = contig_hap1_aung + contigsize*contigsize/hap1totalbases
                 if hap2totalbases > 0:
                     contig_hap2_aung = contig_hap2_aung + contigsize*contigsize/hap2totalbases
-                perctotallength = int(1000.0*cumcontigbases/avghaptotalbases + 0.5)/10.0
+                perctotallength = int(1000.0*cumcontigbases/diploidtotalbases + 0.5)/10.0
                 cfh.write(str(perctotallength) + "\t" + str(contigsize) + "\t" + str(cumcontigbases) + "\tNA\n")
         
         bmstats['totalns'] = totalns
@@ -299,6 +301,7 @@ def write_aligned_cluster_stats(outputfiles:dict, bmstats:dict, args)->int:
     hap1totalbases = bmstats['hap1totalbases'] # total MATERNAL bases in benchmark
     hap2totalbases = bmstats['hap2totalbases'] # total PATERNAL bases in benchmark
     avghaptotalbases = (hap1totalbases + hap2totalbases)/2.0
+    diploidtotalbases = hap1totalbases + hap2totalbases
 
     allclusters = []
 
@@ -325,7 +328,7 @@ def write_aligned_cluster_stats(outputfiles:dict, bmstats:dict, args)->int:
         for cluster in allclusters:
             spanlength = cluster["spanlength"]
             totallength = totallength + spanlength
-            perctotallength = int(1000.0*totallength/avghaptotalbases + 0.5)/10.0
+            perctotallength = int(1000.0*totallength/diploidtotalbases + 0.5)/10.0
             refentry = cluster["refentry"]
             logger.debug(str(spanlength) + "\t" + str(totallength) + "\t" + refentry)
             cfh.write(str(perctotallength) + "\t" + str(spanlength) + "\t" + str(totallength) + "\t" + refentry + "\n")
@@ -500,6 +503,8 @@ def write_qv_stats(benchmark_stats:dict, alignedscorecounts:list, snverrorscorec
     else:
         consensusqv = 'NA'
         qvwithphaseerrors = 'NA'
+
+    benchmark_stats["assemblyqv"] = consensusqv
 
     snvtypestring = ""
     totaltypesnverrors = 0
