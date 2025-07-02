@@ -68,8 +68,6 @@ To compare two FASTA files for two different assemblies (a "query" assembly and 
 
 	assemblycompare --q1fasta <queryhap1.fasta> --q2fasta <queryhap2.fasta> --r1fasta <refhap1.fasta> --r2fasta <refhap2.fasta> -p <prefix_for_output> -Q <query_assembly_name> -R <ref_assembly_name>
 
- an assembly evaluation, the readbench command takes longer to run than the GQC command. For this reason, it has a "--downsample" option which allows the user to pass a fraction between 0 and 1.0 that will cause read alignments to be randomly downsampled to include only that fraction of the alignments in its accuracy calculations. As with the other GQC commands, information about options can be obtained with "assemblycompare --help".
-
 # Program Outputs
 
 All GQC programs create an output directory named with the prefix passed to the program with the --prefix (or -p) option. Within that directory will be a general statistics file, BED files, and pdf-formatted plots.
