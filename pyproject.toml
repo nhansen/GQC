@@ -34,6 +34,7 @@ GQC = "GQC.bench:main"
 assemblybench = "GQC.bench:main"
 gethets = "GQC.gethets:main"
 readbench = "GQC.readbench:main"
+assemblycompare = "GQC.compare:main"
 
 [project.urls]
 "Homepage" = "https://github.com/nhansen/GQC"
