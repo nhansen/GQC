@@ -50,7 +50,7 @@ An example config file is located in the resource tarball and contains the neces
 
 To evaluate assembly scaffolds or contigs, the "bench" command first maps the locations of haplotype-specific 40-mers from the benchmark with the assembly's FASTA file. It then uses your installed version of minimap2 to create and trim alignments of each phased assembly sequence block to the appropriate benchmark haplotype.
 
-	GQC bench -r <benchmark.fasta> -q <assembly.fasta> -p <prefix_for_output> -A <assembly_name> -B <benchmark_name>
+	bench -r <benchmark.fasta> -q <assembly.fasta> -p <prefix_for_output> -A <assembly_name> -B <benchmark_name>
 
 For typical assemblies, the bench command will use about 64Gb of memory and around 4 hours run time on two processors. The command "GQC --help" will display information on other options available (e.g., to restrict regions of the genome examined, set minimum contig or alignment lengths for processing, etc.).
 
@@ -58,9 +58,17 @@ For typical assemblies, the bench command will use about 64Gb of memory and arou
 
 To report and plot statistics about discrepancies between a set of sequencing reads and a benchmark diploid genome, the program has a "readbench" command. First, the reads should be aligned to the diploid benchmark assembly with whatever aligner and parameters you feel are most accurate. The usage of the readbench command is
 
-	GQC readbench -b <reads_vs_benchmark.bam> -r <benchmark.fasta> -p <prefix_for_output> -B <benchmark_name> -R <readset_name>
+	readbench -b <reads_vs_benchmark.bam> -r <benchmark.fasta> -p <prefix_for_output> -B <benchmark_name> -R <readset_name>
 
 Because it is evaluating more alignments than for an assembly evaluation, the readbench command takes longer to run than the GQC command. For this reason, it has a "--downsample" option which allows the user to pass a fraction between 0 and 1.0 that will cause read alignments to be randomly downsampled to include only that fraction of the alignments in its accuracy calculations. As with the GQC command, information about options can be obtained with "readbench --help".
+
+## Comparing two assemblies
+
+To compare two FASTA files for two different assemblies (a "query" assembly and a "reference" assembly) of the same genome (which need not be a benchmark genome), the program "assemblycompare" first phases the query assembly against the reference assembly using 40 basepair k-mers that are unique to one haplotype of the reference assembly. It then reports statistics for completeness of and discrepancies within alignments between query scaffolds and the appropriate haplotype of the reference assembly. The usage for "assemblycompare" is
+
+	assemblycompare --q1fasta <queryhap1.fasta> --q2fasta <queryhap2.fasta> --r1fasta <refhap1.fasta> --r2fasta <refhap2.fasta> -p <prefix_for_output> -Q <query_assembly_name> -R <ref_assembly_name>
+
+ an assembly evaluation, the readbench command takes longer to run than the GQC command. For this reason, it has a "--downsample" option which allows the user to pass a fraction between 0 and 1.0 that will cause read alignments to be randomly downsampled to include only that fraction of the alignments in its accuracy calculations. As with the other GQC commands, information about options can be obtained with "assemblycompare --help".
 
 # Program Outputs
 
