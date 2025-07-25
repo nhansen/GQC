@@ -45,7 +45,7 @@ def name_output_files(args, outputdir:str)->dict:
     files["structdetailsfile"] = outputdir + "/" + args.assembly + ".structurestats.txt"
     files["structvariantbed"] = outputdir + "/" + args.assembly + ".svs.bed"
     files["structvariantsvcf"] = outputdir + "/" + args.assembly + ".svs.vcf"
-    files["clusterlengths"] = outputdir + "/alignmentplots/" + args.assembly + ".alignclusterlengths.txt"
+    files["clusterlengths"] = outputdir + "/" + args.assembly + ".alignclusterlengths.txt"
     files["coveredmononucsfile"] = outputdir + "/" + args.assembly + ".coveredmononucs." + args.benchmark + ".bed"
     files["mononucswithvariantsfile"] = outputdir + "/" + args.assembly + ".mononucswithvariants." + args.benchmark + ".bed"
     files["bencherrortypebed"] = outputdir + "/" + args.assembly + ".errortype." + args.benchmark + ".bed"

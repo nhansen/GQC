@@ -88,4 +88,32 @@ def map_kmer_markers_onto_fasta(fastafile:str, markerfilelist:list, outputdir:st
    
     return outputfile
 
+def find_extreme_kmers(fastkdbroot:str):
+    if os.path.exists(fastkdbroot + ".hist"):
+        env = os.environ.copy()
+        env['LD_LIBRARY_PATH'] = os.getcwd()
+        command = "Tabex -t2 " + fastkdbroot + " LIST"
+        print("Running: " + command)
+        logger.info("Running: " + command)
+        proc = subprocess.Popen(command, shell=True, env=env)
+        while True:
+            line = proc.stdout.readline()
+            if not line:
+                break
+            print(line.strip())
+        proc.wait()
+    else:
+        logger.critical("No such fastk database: " + fastkdbroot)
+
+# returns the total count of base1 and base2 on the two strands of a kmer string
+def twobase_kmer_comp(base1:str, base2:str, kmerseq:str):
+    kmerseqlc = kmerseq.tolower()
+    base1 = base1.tolower()
+    base2 = base2.tolower()
+    compbases = {'a':'t', 't':'a', 'g':'c', 'c':'g'}
+
+    fwdcount = kmerseq.count(base1) + kmerseq.count(base2)
+    revcount = kmerseq.count(compbase[base1]) + kmerseq.count(compbase[base2])
+
+    return [fwdcount, revcount]
 

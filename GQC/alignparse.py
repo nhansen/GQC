@@ -232,6 +232,12 @@ def align_variants(align, queryobj, query:str, querystart:int, queryend:int, ref
                     querycoordinate = querypos + querystart
                 else:
                     querycoordinate = queryend - querypos
+                if refpos >= len(refseq):
+                    logger.debug("Ref position " + str(refpos) + " in " + ref + " is past end of seq")
+                    continue
+                if querypos >= len(queryseq):
+                    logger.debug("Query position " + str(querypos) + " in " + query + " is past end of seq")
+                    continue
                 if refseq[refpos] != queryseq[querypos] and refseq[refpos] != "N" and queryseq[querypos] != "N":
                     variantname=query+"_"+str(querycoordinate)+"_"+refseq[refpos]+"_"+queryseq[querypos]+"_"+strand # query's 1-based position, ref base, query base (comp if rev strand), strand
                     #additionalfields = "0\t" + bedstrand + "\t" + str(refpos+refstart-1) + "\t" + str(refpos+refstart) + "\t0,0,0\t" + alignstring

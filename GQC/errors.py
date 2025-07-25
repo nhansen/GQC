@@ -760,8 +760,10 @@ def widen_str_on_readseq(readseq:str, readstart:int, readend:int, repbases:str)-
 
 def assess_read_align_errors(align_obj, refobj, readerrorfile:str, bedintervals, hetsitedict, args):
    
-    if not args.errorfile:
+    if not args.errorfile and not args.rerun:
         refh = open(readerrorfile, "w")
+    elif args.errorfile:
+        readerrorfile = args.errorfile 
 
     stats = {}
     stats["totalalignedbases"] = 0
@@ -808,7 +810,7 @@ def assess_read_align_errors(align_obj, refobj, readerrorfile:str, bedintervals,
                 if benchinterval is None or benchinterval.end > align.reference_end:
                     stats["totalclippedbases"] = stats["totalclippedbases"] + cigartuples[-1][1]
             
-            if not args.errorfile:
+            if not args.errorfile and not args.rerun:
                 query, querystart, queryend, ref, refstart, refend, strand = alignparse.retrieve_align_data(align)
                 if strand == "F":
                     queryleft = querystart
@@ -895,8 +897,8 @@ def assess_read_align_errors(align_obj, refobj, readerrorfile:str, bedintervals,
             if alignsprocessed == 100000*int(alignsprocessed/100000):
                 logger.debug("Processed " + str(alignsprocessed) + " aligns")
 
-    if args.errorfile:
-        with open(args.errorfile, "r") as efh:
+    if args.errorfile or args.rerun:
+        with open(readerrorfile, "r") as efh:
             errorline = efh.readline()
             while errorline:
                 errorline = errorline.rstrip()
