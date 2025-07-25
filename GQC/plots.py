@@ -96,8 +96,9 @@ def plot_assembly_error_stats(assemblyname:str, genomename:str, outputdir:str):
 
 def plot_read_error_stats(readsetname:str, genomename:str, outputdir:str):
     rfile_res = importlib.resources.files("GQC").joinpath('IndelLengthPlot.R')
-    with importlib.resources.as_file(rfile_res) as rfile:
-        plotcommand = "Rscript " + str(rfile) + " " + readsetname + " " + genomename + " " + outputdir
+    rlib_res = importlib.resources.files("GQC").joinpath('AssemblyFunctions.R')
+    with importlib.resources.as_file(rfile_res) as rfile, importlib.resources.as_file(rlib_res) as rlib:
+        plotcommand = "cat " + str(rlib) + " " + str(rfile) + " | " + "Rscript - " + readsetname + " " + genomename + " " + outputdir
         logger.info(plotcommand)
         returnvalue = os.system(plotcommand)
     return returnvalue

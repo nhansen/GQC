@@ -48,6 +48,7 @@ def init_argparse() -> argparse.ArgumentParser:
     parser.add_argument('-R', '--readsetname', type=str, required=False, default="test", help='name of the assembly being tested--should be query sequence in bam file')
     parser.add_argument('-B', '--benchmark', type=str, required=False, default="truth", help='name of the assembly being used as a benchmark--should be the reference sequence in the bam file')
     parser.add_argument('-c', '--config', type=str, required=False, default="benchconfig.txt", help='path to a config file specifying locations of benchmark data files')
+    parser.add_argument('--rerun', action='store_true', required=False, help='use existing file of read errors rather than recreating it')
     parser.add_argument('--debug', action='store_true', required=False, help='print verbose output to log file for debugging')
 
     return parser
@@ -138,18 +139,6 @@ def main() -> None:
     if args.downsample is not None:
         logger.info("Downsampling to fraction " + str(args.downsample) + " of reads")
 
-
-    # evaluate STR runs:
-    #if not args.nomononucs:
-        #logger.info("Assessing accuracy of mononucleotide runs")
-        #logger.debug(benchparams["mononucruns"])
-        #logger.debug(outputfiles["mononucstatsfile"])
-        #if args.newflankrules:
-            #mononucstats = errors.assess_mononuc_read_coverage_require_flank(alignobj, refobj, benchparams["mononucruns"], outputfiles, benchintervals, hetsites, args)
-        #else:
-            #mononucstats = errors.assess_mononuc_read_coverage(alignobj, benchparams["mononucruns"], outputfiles, benchintervals, hetsites, args)
-        #stats.write_read_mononuc_stats(mononucstats, outputfiles, args)
-        #plots.plot_read_mononuc_stats(args.readsetname, args.benchmark, outputdir)
 
     if not args.nostrs:
         logger.info("Assessing accuracy of short tandem repeats")
