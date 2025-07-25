@@ -76,32 +76,36 @@ def main() -> None:
     queryobj = pysam.FastaFile(args.query)
 
     alignmapping = {}
-    variantnum = 1
-    for align in alignobj.fetch():
-        if align.is_secondary:
-            continue
-        else:
-            print("Primary alignment")
 
-        query, querystart, queryend, ref, refstart, refend, strand = alignparse.retrieve_align_data(align)
-        refcoords = ref + ":" + str(refstart) + "-" + str(refend)
-        querycoords = query + ":" + str(querystart) + "-" + str(queryend)
-        logger.info("Parsing alignment between " + querycoords + " and " + refcoords)
-        allvars = alignparse.align_variants(align, queryobj, query, querystart, queryend, refobj, ref, refstart, refend, strand)
-        numvars = len(allvars)
-        logger.info("Found " + str(numvars) + " variants in align with ref " + refcoords + " and query " + querycoords)
-        for variant in allvars:
-            #newchrom = variant.chrom
-            #newstart = variant.start
-            #newend = variant.end
-            #newname = args.prefix + "." + str(variantnum)
-            #newvartype = variant.vartype
-            #newexcluded = variant.excluded
-            #newqvscore = variant.qvscore
-            #newvariant = varianttuple(chrom=newchrom, start=newstart, end=newend, name=newname, vartype=newvartype, excluded=newexcluded, qvscore=newqvscore)
-            variantnum = variantnum + 1
-            vcfrecord = errors.vcf_format(variant, refobj, queryobj)
-            print(vcfrecord, end="")
+    bedoutput = args.prefix + ".refcovered.bed"
+    vcfoutput = args.prefix + ".discrepancies.vcf"
+
+    with open(vcfoutput, "w") as vfh, open(bedoutput, "w") as bfh:
+        for align in alignobj.fetch():
+            if align.is_secondary:
+                continue
+            else:
+                print("Primary alignment")
+
+            query, querystart, queryend, ref, refstart, refend, strand = alignparse.retrieve_align_data(align)
+            refcoords = ref + ":" + str(refstart) + "-" + str(refend)
+            querycoords = query + ":" + str(querystart) + "-" + str(queryend)
+            if strand == 'F':
+                bedstrand = '+'
+            else:
+                bedstrand = '-'
+
+            mapqual = align.mapq
+
+            bfh.write(ref + "\t" + str(refstart-1) + "\t" + str(refend) + "\t" + querycoords + "_" + refcoords + "_" + strand + "\t" + str(mapqual) + "\t" + bedstrand + "\n")
+
+            logger.info("Parsing alignment between " + querycoords + " and " + refcoords)
+            allvars = alignparse.align_variants(align, queryobj, query, querystart, queryend, refobj, ref, refstart, refend, strand)
+            numvars = len(allvars)
+            logger.info("Found " + str(numvars) + " variants in align with ref " + refcoords + " and query " + querycoords)
+            for variant in allvars:
+                vcfrecord = errors.vcf_format(variant, refobj, queryobj)
+                vfh.write(vcfrecord)
 
 
 if __name__ == "__main__":
