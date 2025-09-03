@@ -105,11 +105,16 @@ def plot_read_error_stats(readsetname:str, genomename:str, outputdir:str):
 
 def plot_read_mononuc_stats(readsetname:str, genomename:str, outputdir:str):
     rfile_res = importlib.resources.files("GQC").joinpath('ReadMononucAccuracy.R')
+    rlib_res = importlib.resources.files("GQC").joinpath('ReadBenchPlotFunctions.R')
     with importlib.resources.as_file(rfile_res) as rfile:
         plotcommand = "Rscript " + str(rfile) + " " + readsetname + " " + genomename + " " + outputdir
         logger.info(plotcommand)
         returnvalue = os.system(plotcommand)
     return returnvalue
+
+def plot_read_coverage_vs_gccontent(readsetname:str, genomename:str, outputdir:str):
+    #rfile_res = importlib.resources.files("GQC").joinpath('ReadCoverageVsGCContent.R')
+    pass
 
 def plot_read_qv_score_concordance(readsetname:str, benchname:str, outputdir:str, resourcedir:str):
     rfile_res = importlib.resources.files("GQC").joinpath('PlotAssemblyQualValueAccuracy.R')

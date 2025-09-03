@@ -9,6 +9,7 @@ from collections import namedtuple
 from GQC import seqparse
 from GQC import alignparse
 from GQC import bedtoolslib
+from GQC import coverage
 
 # create namedtuple for bed intervals:
 varianttuple = namedtuple('varianttuple', ['chrom', 'start', 'end', 'name', 'vartype', 'excluded', 'qvscore']) 
@@ -791,9 +792,10 @@ def assess_read_align_errors(align_obj, refobj, readerrorfile:str, bedintervals,
             regionstring = None
 
         for align in align_obj.fetch(region=regionstring):
+
             if align.is_secondary or align.cigartuples is None or (args.downsample is not None and random.random() >= args.downsample):
                 continue
-   
+
             stats["totalalignedbases"] = stats["totalalignedbases"] + align.reference_length
             if benchinterval is not None: # shorten aligned length contribution if necessary
                 if benchinterval.start > align.reference_start:
@@ -896,6 +898,7 @@ def assess_read_align_errors(align_obj, refobj, readerrorfile:str, bedintervals,
             alignsprocessed = alignsprocessed + 1
             if alignsprocessed == 100000*int(alignsprocessed/100000):
                 logger.debug("Processed " + str(alignsprocessed) + " aligns")
+
 
     if args.errorfile or args.rerun:
         with open(readerrorfile, "r") as efh:

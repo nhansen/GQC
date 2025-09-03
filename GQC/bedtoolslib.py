@@ -62,7 +62,7 @@ def bedsum(intervals)->int:
 
     return bedsum
 
-def intersectbed(bedfile1:str, bedfile2:str, outputfile:str, writefirst=False, writeboth=False, outerjoin=False)->str:
+def intersectbed(bedfile1:str, bedfile2:str, outputfile:str, writefirst=False, writeboth=False, outerjoin=False, requirewhole=False)->str:
 
     logger.debug("Intersecting " + bedfile1 + " and " + bedfile2 + " to create " + outputfile)
 
@@ -73,6 +73,8 @@ def intersectbed(bedfile1:str, bedfile2:str, outputfile:str, writefirst=False, w
         command = command + " -wo"
     if outerjoin:
         command = command + " -loj"
+    if requirewhole:
+        command = command + " -f 1.0"
     os.system(command + " > " + outputfile)
     intersectbed = pybedtools.bedtool.BedTool(outputfile)
 

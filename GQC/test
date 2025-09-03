@@ -1,0 +1,58 @@
+import os
+import pybedtools
+import logging
+import math
+
+logger = logging.getLogger(__name__)
+
+# Routine choose_bin_size attempts to set the size of bins that will have 
+# roughly 1000 primary, non-secondary alignment starts within each bin.
+# Input: pysam.AlignmentFile object, pysam.FastaFile object, arguments
+# Output: Integer giving the recommended number of bins
+
+def choose_bin_size(alignobj, refobj, args)->int:
+
+    totalreads = 0
+    totalrefbases = 0
+    for statdict in alignobj.get_index_statistics():
+        ref = statdict[0]
+        readsmapped = statdict[1]
+        reflength = alignobj.get_reference_length(ref)
+        if ref == "chrM":
+            continue
+        totalreads += readsmapped
+        totalrefbases += reflength
+
+    arrivalsperbase = totalreads/totalrefbases
+    requiredbin = 1000/arrivalsperbase
+
+    binsize = 10000*math.floor(requiredbin/10000 + 0.5)
+
+    return binsize
+    
+def initiate_bins(refobj, binsize, args)->list:
+
+    binintervalstring = ""
+    bincounts = []
+
+    for ref in refobj.references:
+        reflength = refobj.get_reference_length(ref)
+        binstart = 0
+        while binstart + binsize <= reflength:
+            binintervalstring = binintervalstring + ref + "\t" + str(binstart) + "\t" + str(binstart + binsize) + "\n"
+            bincounts.append(0)
+
+    numbins = len(bincounts)
+    print("Zeroed " + 
+
+    return [binintervals, bincounts]
+
+def find_bin_number(chrom:str, start:int, args)->int:
+
+    return 0
+    
+
+# usage:
+#binsize = coverage.choose_bin_size(align_obj, refobj, args)
+#stats["coveragebincounts"] = coverage.initiate_bins(bedintervals, binsize, args)
+#binnumber = coverage.find_bin_number(align.reference_name, align.reference_start, args)

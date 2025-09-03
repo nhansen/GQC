@@ -126,16 +126,17 @@ def read_config_data(args)->dict:
                 configline = cr.readline()
 
         # add the resource directory location for all non-absolute paths:
-        resourcedir = configvals["resourcedir"]
-        if (os.path.exists(resourcedir)):
-            for configkey in configvals.keys():
-                if configvals[configkey][0] != "/":
-                    configvals[configkey] = resourcedir + "/" + configvals[configkey]
-        else:
-            logger.critical("The resource directory specified in the config file as \"resourcedir\" does not exist. Please change it to the location of files from the resource tarball")
-            print("The resource directory specified in the config file as \"resourcedir\" does not exist. Please change it to the location of files from the resource tarball")
-            exit(1)
-
+        if 'resourcedir' in configvals.keys():
+            resourcedir = configvals["resourcedir"]
+            if (os.path.exists(resourcedir)):
+                for configkey in configvals.keys():
+                    if configvals[configkey][0] != "/":
+                        configvals[configkey] = resourcedir + "/" + configvals[configkey]
+            else:
+                logger.critical("The resource directory specified in the config file as \"resourcedir\" does not exist. Please change it to the location of files from the resource tarball")
+                print("The resource directory specified in the config file as \"resourcedir\" does not exist. Please change it to the location of files from the resource tarball")
+                exit(1)
+    
     return configvals
 
 def main() -> None:
