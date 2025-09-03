@@ -25,10 +25,10 @@ def init_argparse() -> argparse.ArgumentParser:
         "-v", "--version", action="version",
         version = f"{parser.prog} version 0.1.0"
     )
-    parser.add_argument('--bam1', required=False, help='bam file of alignments in one direction from one haplotype mapped to the other')
-    parser.add_argument('--bam2', required=False, help='bam file of alignments in the other direction')
-    parser.add_argument('--ref1', type=str, required=False, help='(indexed) reference fasta file for the first bam file')
-    parser.add_argument('--ref2', type=str, required=False, help='(indexed) reference fasta file for the second bam file')
+    parser.add_argument('--bam1', required=True, help='bam file of alignments in one direction from one haplotype mapped to the other')
+    parser.add_argument('--bam2', required=True, help='bam file of alignments in the other direction')
+    parser.add_argument('--ref1', type=str, required=True, help='(indexed) reference fasta file for the first bam file')
+    parser.add_argument('--ref2', type=str, required=True, help='(indexed) reference fasta file for the second bam file')
     parser.add_argument('-m', '--minalignlength', type=int, required=False, default=10000, help='minimum length of alignment required to be included in het site gathering')
     parser.add_argument('--windowsize', '--hetwindowsize', type=int, required=False, default=100000, help='window size for reporting heterozygosity levels')
     parser.add_argument('-n', '--non1to1', action='store_true', required=False, help='relax 1to1 (default) requirement of matching alignment endpoints')
