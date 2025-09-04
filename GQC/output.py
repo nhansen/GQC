@@ -76,6 +76,7 @@ def name_read_stats_files(args, outputdir:str)->dict:
     files["indelstatsfile"] = outputdir + "/" + args.readsetname + ".indelerrorstats.txt"
     files["qvstatsfile"] = outputdir + "/" + args.readsetname + ".errorqvstats.txt"
     files["coveragebedfile"] = outputdir + "/" + args.readsetname + ".binnedcoverage.bed"
+    files["arrivalratebedfile"] = outputdir + "/" + args.readsetname + ".arrivalrates.bed"
     files["includedcoveragebedfile"] = outputdir + "/" + args.readsetname + ".binnedcoverage.included.bed"
     files["extremekmersbedfile"] = outputdir + "/" + args.readsetname + ".extremekmercounts.bed"
     files["benchmarkkmercountfile"] = outputdir + "/" + args.readsetname + ".benchmarkkmercounts.txt"

@@ -42,16 +42,16 @@ def init_argparse() -> argparse.ArgumentParser:
     parser.add_argument('--mincontiglength', type=int, required=False, default=500, help='minimum length for contig to be included in contig statistics')
     parser.add_argument('--maxstrreads', type=int, required=False, default=500, help='maximum number of reads to be evaluated for any one STR run in the STR run accuracy analysis. Use 0 to analyze all reads')
     parser.add_argument('--excludefile', type=str, required=False, default=None, help='bed file of benchmark locations to exclude from consideration (in addition to stretches of 10 or more Ns and regions in the exclude file specified in the config file)')
-    parser.add_argument('--nostrs', action='store_true', required=False, help='skip analysis of short tandem repeat length accuracy')
-    parser.add_argument('--nobaseerrors', action='store_true', required=False, help='skip analysis of base errors within reads')
-    parser.add_argument('--nobincoverage', action='store_true', required=False, help='skip calculation of binned read coverage')
-    parser.add_argument('--nokmercoverage', action='store_true', required=False, help='skip reporting of read kmer coverage')
+    parser.add_argument('--strs', action='store_true', required=False, help='perform analysis of short tandem repeat length accuracy')
+    parser.add_argument('--baseerrors', action='store_true', required=False, help='perform analysis of base errors within reads')
+    parser.add_argument('--bincoverage', action='store_true', required=False, help='perform analysis of binned read coverage')
+    parser.add_argument('--kmercoverage', action='store_true', required=False, help='perform analyses of read kmer coverage')
+    parser.add_argument('--arrivalratecoverage', action='store_true', required=False, help='perform analyses of read arrival rates (for test against Poisson)')
     parser.add_argument('--downsample', type=restricted_float, required=False, default=None, help='fraction of read alignments to include in error reporting statistics calculations (must be a floating point number between 0 and 1)')
     parser.add_argument('--covbinsize', type=int, required=False, default=0, help='size of bins used to tally read counts in coverage analysis. If 0, will calculate bin size to result in roughly 1000 read starts per bin.')
     parser.add_argument('--bincovoverlap', action='store_true', required=False, help='count reads that overlap bins, rather than just reads that start in bins')
     parser.add_argument('--covkmersize', type=int, required=False, default=3, help='size of kmers used in coverage analysis. Values greater than 5 will cause only "extreme" kmers composed of two bases to be analyzed.')
     parser.add_argument('--minreadalignedpercentage', type=int, required=False, default=90, help='In the coverage analysis, minimum percentage of read required to be aligned without clipping.')
-    parser.add_argument('--strs', action='store_true', required=False, help='analyse short tandem repeat accuracy')
     parser.add_argument('-e', '--errorfile', type=str, required=False, default='', help='preexisting file of read errors to report and plot stats for')
     parser.add_argument('-R', '--readsetname', type=str, required=False, default="test", help='name of the assembly being tested--should be query sequence in bam file')
     parser.add_argument('-B', '--benchmark', type=str, required=False, default="truth", help='name of the assembly being used as a benchmark--should be the reference sequence in the bam file')
@@ -146,16 +146,21 @@ def main() -> None:
     if args.downsample is not None:
         logger.info("Downsampling to fraction " + str(args.downsample) + " of reads")
 
-    if not args.nobincoverage:
+    if args.bincoverage:
         logger.info("Calculating binned coverage")
         logger.debug(outputfiles["coveragebedfile"])
-        coverage.tally_bin_coverages(alignobj, refobj, benchintervals, outputfiles["coveragebedfile"], outputfiles["includedcoveragebedfile"], args)
+        coverage.tally_bin_coverages(alignobj, refobj, benchintervals, outputfiles["includedbedfile"], outputfiles["coveragebedfile"], outputfiles["includedcoveragebedfile"], args)
         #plots.plot_read_coverage_vs_gccontent(outputfiles["coveragebedfile"], outputfiles["extremekmersbedfile"])
 
-    if not args.nokmercoverage:
+    if args.arrivalratecoverage:
+        logger.info("Calculating read arrival rate in bins for comparison to Poisson distribution")
+        logger.debug(outputfiles["arrivalratebedfile"])
+        coverage.tally_included_bin_arrival_rates(alignobj, refobj, benchintervals, outputfiles["arrivalratebedfile"], args)
+
+    if args.kmercoverage:
         coverage.compare_read_kmers_to_benchmark_kmers(alignobj, refobj, benchintervals, outputfiles["benchmarkkmercountfile"], outputfiles["readalignedkmercountfile"], outputfiles["strandedalignedkmercountfile"], benchparams, args)
 
-    if not args.nostrs:
+    if args.strs:
         logger.info("Assessing accuracy of short tandem repeats")
         print("Assessing accuracy of short tandem repeats")
     
@@ -188,7 +193,7 @@ def main() -> None:
             logger.info("No mononucleotide bed file specified in configuration file(mononucruns)")
 
     # evaluate errors within read alignments:
-    if not args.nobaseerrors:
+    if args.baseerrors:
         logger.info("Assessing errors within read alignments")
         logger.debug(outputfiles["readerrorfile"])
         errorstats = errors.assess_read_align_errors(alignobj, refobj, outputfiles["readerrorfile"], benchintervals, hetsites, args)

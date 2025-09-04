@@ -246,7 +246,7 @@ def tally_chrom_starts_ends(alignobj:pysam.AlignmentFile, refobj:pysam.FastaFile
 
     return(startendcountlist)
 
-def tally_bin_coverages(alignobj:pysam.AlignmentFile, refobj:pysam.FastaFile, includedintervals:pybedtools.BedTool, outputcountbed:str, outputincludedcountbed, args):
+def tally_bin_coverages(alignobj:pysam.AlignmentFile, refobj:pysam.FastaFile, includedintervals:pybedtools.BedTool, includedbed:str, outputcountbed:str, outputincludedcountbed, args):
 
     if args.covbinsize == 0:
         binsize = choose_bin_size(alignobj, refobj, includedintervals, args)
@@ -284,10 +284,10 @@ def tally_bin_coverages(alignobj:pysam.AlignmentFile, refobj:pysam.FastaFile, in
             print("Current reads at end of " + chrom + " is " + str(currentreads))
             logger.debug("Current reads at end of " + chrom + " is " + str(currentreads))
 
-    includedcountfile = bedtoolslib.intersectbed(outputcountbed, includedbed, requirewhole=True, writefirst=True)
+    includedcountfile = bedtoolslib.intersectbed(outputcountbed, includedbed, outputincludedcountbed, requirewhole=True, writefirst=True)
     logger.info("Wrote count bed file of included whole bins")
 
-def tally_included_bin_coverages(alignobj:pysam.AlignmentFile, refobj:pysam.FastaFile, includedintervals:pybedtools.BedTool, outputcountbed:str, args):
+def tally_included_bin_arrival_rates(alignobj:pysam.AlignmentFile, refobj:pysam.FastaFile, includedintervals:pybedtools.BedTool, outputcountbed:str, args):
 
     if args.covbinsize == 0:
         binsize = choose_bin_size(alignobj, refobj, includedintervals, args)

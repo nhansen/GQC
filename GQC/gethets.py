@@ -10,7 +10,6 @@ import importlib.resources
 from pathlib import Path
 from GQC import seqparse
 from GQC import alignparse
-#from GQC import assemblygraph
 from GQC import bedtoolslib
 from GQC import heatmap
 
@@ -46,6 +45,13 @@ def parse_arguments(args):
     args = parser.parse_args(args)
 
     return args
+
+def check_for_bedtools():
+    if shutil.which("bedtools") is None:
+        print("You don\'t seem to have bedtools in your path. Please install bedtools")
+        logger.critical("You don\'t seem to have bedtools in your path. Please install bedtools")
+        exit(1)
+    return 0
 
 # reads aligns from a bam file, and returns (a) a BED object with all same-autosome (or X/Y) aligned reference intervals (unmerged)
 # (b) a BED object with query intervals, and (c) a dictionary of alignments query-able by alignment name (which is query:start-end/ref:start-end
@@ -269,6 +275,9 @@ def main() -> None:
         logger.info('Logging verbose output for debugging.')
     else:
         logging.basicConfig(filename=logfile, level=logging.INFO, format=logformat)
+
+    # make sure user has bedtools:
+    check_for_bedtools()
 
     # read aligns from BAM files
     # coords dictionaries have keys that are the query coordinates and values that are the ref coordinates
